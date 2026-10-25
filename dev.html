@@ -1,0 +1,70 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>body{margin:0}[hidden]{display:none!important}</style></head><body>
+<title>Établi électronique</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="style.css">
+
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><path d="M2 16h7l3-7 4 14 4-14 3 7h7"/></svg>
+      <div>
+        <h1>Établi</h1>
+        <p class="tagline">Émulateur de circuits, modèles calés sur les fiches techniques</p>
+      </div>
+    </div>
+    <div class="tools" role="toolbar" aria-label="Outils">
+      <button id="tool-select" class="tool active" title="Sélection et déplacement (V)">Sélection</button>
+      <button id="tool-wire" class="tool" title="Tirer un fil (W). Astuce : glissez depuis une broche.">Fil</button>
+      <span class="sep"></span>
+      <button id="act-rotate" title="Pivoter la sélection (R)">Pivoter</button>
+      <button id="act-delete" title="Supprimer la sélection (Suppr)">Supprimer</button>
+      <button id="act-repair" title="Remplacer les composants détruits">Réparer</button>
+      <span class="sep"></span>
+      <button id="act-reset" class="ghost" title="Recharger le montage d'exemple">Exemple</button>
+      <button id="act-clear" class="ghost" title="Vider le plan de travail">Vider</button>
+    </div>
+  </header>
+
+  <aside class="palette" aria-label="Composants">
+    <div id="palette-list"></div>
+    <section class="request">
+      <h2>Ajouter un composant réel</h2>
+      <p>Demandez-le dans le chat du projet, par exemple <q>Ajoute un capteur DHT22</q> ou <q>Ajoute un transistor 2N2222</q>.</p>
+      <p>Claude ouvre un fil dédié, lit la fiche technique, écrit le modèle et ses tests, puis l'intègre ici.</p>
+    </section>
+  </aside>
+
+  <main class="stage">
+    <div class="canvas-wrap" id="canvas-wrap">
+      <svg id="canvas" xmlns="http://www.w3.org/2000/svg"></svg>
+      <div id="tip" class="tip" hidden></div>
+    </div>
+    <footer class="statusbar" id="status"></footer>
+  </main>
+
+  <aside class="side">
+    <div class="tabs" role="tablist">
+      <button role="tab" id="tab-inspect" class="tab active" aria-selected="true">Mesures</button>
+      <button role="tab" id="tab-code" class="tab" aria-selected="false">Code ESP32</button>
+    </div>
+    <section id="panel-inspect" class="panel"></section>
+    <section id="panel-code" class="panel" hidden>
+      <div class="code-head">
+        <span id="run-state" class="pill">arrêté</span>
+        <div class="code-actions">
+          <button id="code-run" class="primary">Téléverser</button>
+          <button id="code-stop">Arrêter</button>
+        </div>
+      </div>
+      <textarea id="code" spellcheck="false" aria-label="Sketch Arduino"></textarea>
+      <div class="serial-head"><h3>Moniteur série · 115200 bauds</h3><button id="serial-clear" class="ghost small">Effacer</button></div>
+      <pre id="serial" class="serial" aria-live="polite"></pre>
+      <p class="hint">Sous-ensemble Arduino : pinMode, digitalWrite/Read, analogWrite (PWM moyenné), analogRead, delay, millis, Serial. Les fonctions C++ avancées (classes, pointeurs, bibliothèques) ne sont pas encore prises en charge.</p>
+    </section>
+  </aside>
+</div>
+
+<script type="module" src="src/ui/app.js"></script>
+</body></html>
