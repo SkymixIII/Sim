@@ -44,20 +44,23 @@ vmtx#branch                                  0
 va#branch                         -7.68447e-05
 asig#branch_0_0                    4.99977e-07
 
- Reference value :  1.58714e-02
- Reference value :  3.32688e-02
- Reference value :  4.95530e-02
- Reference value :  6.42974e-02
- Reference value :  8.11149e-02
- Reference value :  9.80222e-02
- Reference value :  1.14014e-01
- Reference value :  1.30334e-01
- Reference value :  1.47182e-01
- Reference value :  1.64339e-01
- Reference value :  1.82475e-01
- Reference value :  2.01826e-01
- Reference value :  2.21725e-01
- Reference value :  2.41700e-01
+ Reference value :  1.39603e-02
+ Reference value :  2.77770e-02
+ Reference value :  4.20919e-02
+ Reference value :  5.69033e-02
+ Reference value :  7.13164e-02
+ Reference value :  8.51289e-02
+ Reference value :  1.00083e-01
+ Reference value :  1.14843e-01
+ Reference value :  1.29350e-01
+ Reference value :  1.43880e-01
+ Reference value :  1.58879e-01
+ Reference value :  1.70850e-01
+ Reference value :  1.85516e-01
+ Reference value :  2.00433e-01
+ Reference value :  2.15248e-01
+ Reference value :  2.27934e-01
+ Reference value :  2.42296e-01
 No. of Data Rows : 499752
 ngspice-42 done
 Using SPARSE 1.3 as Direct Linear Solver

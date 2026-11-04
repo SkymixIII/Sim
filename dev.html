@@ -22,7 +22,7 @@
       <button id="act-delete" title="Supprimer la sélection (Suppr)">Supprimer</button>
       <button id="act-repair" title="Remplacer les composants détruits">Réparer</button>
       <span class="sep"></span>
-      <button id="act-reset" class="ghost" title="Recharger le montage d'exemple">Exemple</button>
+      <label class="examples"><span class="vh">Charger un montage</span><select id="act-example" title="Charger un montage d'exemple"><option value="">Montages…</option></select></label>
       <button id="act-clear" class="ghost" title="Vider le plan de travail">Vider</button>
     </div>
   </header>
@@ -41,15 +41,39 @@
       <svg id="canvas" xmlns="http://www.w3.org/2000/svg"></svg>
       <div id="tip" class="tip" hidden></div>
     </div>
+    <section id="scope" class="scope" hidden aria-label="Oscilloscope">
+      <div class="scope-head">
+        <h3>Oscilloscope</h3>
+        <div class="scope-ctl">
+          <label>Fenêtre <select id="scope-win"><option value="all">tout</option><option value="frame" selected>une image</option><option value="bits">8 bits</option><option value="edge">un front</option></select></label>
+          <label class="pos">Position <input type="range" id="scope-pos" min="0" max="1" step="0.001" value="0.5"></label>
+          <button id="scope-close" class="ghost small" title="Fermer l'oscilloscope">Fermer</button>
+        </div>
+      </div>
+      <div id="scope-plot" class="scope-plot"></div>
+    </section>
     <footer class="statusbar" id="status"></footer>
   </main>
 
   <aside class="side">
     <div class="tabs" role="tablist">
       <button role="tab" id="tab-inspect" class="tab active" aria-selected="true">Mesures</button>
+      <button role="tab" id="tab-scope" class="tab" aria-selected="false">Oscilloscope</button>
       <button role="tab" id="tab-code" class="tab" aria-selected="false">Code ESP32</button>
     </div>
     <section id="panel-inspect" class="panel"></section>
+    <section id="panel-scope" class="panel" hidden>
+      <div><h2>Analyse transitoire</h2><p class="summary">Simule le circuit dans le temps, pas à pas, comme le <code>.tran</code> de SPICE. Les voies des oscilloscopes du plan de travail s'affichent sous le schéma, avec leurs mesures et le décodage LTC.</p></div>
+      <p id="scope-note" class="hint" hidden></p>
+      <div class="params tran-params">
+        <label for="tran-stop">Durée simulée (ms)<input type="text" id="tran-stop" value="120" inputmode="decimal"></label>
+        <label for="tran-dt">Pas de calcul<select id="tran-dt"><option value="0.5e-6">0,5 µs</option><option value="1e-6">1 µs</option><option value="2e-6" selected>2 µs</option><option value="5e-6">5 µs</option><option value="10e-6">10 µs</option><option value="50e-6">50 µs</option></select></label>
+        <label for="tran-from">Mesurer à partir de (ms)<input type="text" id="tran-from" value="40" inputmode="decimal"></label>
+      </div>
+      <div class="row"><button id="tran-run" class="primary">Lancer l'analyse</button><span id="tran-state" class="pill">pas encore lancée</span></div>
+      <div id="scope-results"></div>
+      <p class="hint">Point de départ : le point de fonctionnement DC, où chaque générateur délivre sa valeur moyenne (état établi). Intégration trapézoïdale à pas fixe. Le comparateur bascule un pas après son entrée.</p>
+    </section>
     <section id="panel-code" class="panel" hidden>
       <div class="code-head">
         <span id="run-state" class="pill">arrêté</span>

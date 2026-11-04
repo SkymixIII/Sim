@@ -8,15 +8,20 @@
 index.html, style.css
 src/
   engine/              Le simulateur (aucune dépendance au navigateur)
-    solver.js          MNA + Newton-Raphson, limitation de jonction, source stepping
+    solver.js          MNA + Newton-Raphson, limitation de jonction, source stepping, analyse transitoire
+    ltc.js             Codeur / décodeur de timecode LTC (SMPTE 12M)
+    measure.js         Mesures d'oscilloscope : crête à crête, fronts 10-90 %, décodage LTC
+    tran-worker.js     Analyse transitoire dans un Web Worker
     devices.js         Briques physiques : jonction PN, Thévenin, ajustement Is depuis VF
     circuit.js         Schéma -> netlist, masse, PWM moyenné, détection de casse
     units.js           Formatage SI (4k7, 220 Ω, 5,84 mA)
   components/          Un fichier par famille de composants (le "plugin")
     index.js           Registre : la liste des composants disponibles
-    passives.js        Masse, résistance, potentiomètre, interrupteur, bouton
-    sources.js         Alimentation DC, piles (Thévenin), source de courant
-    semiconductors.js  Diodes (1N4148, 1N4007, 1N5819, Zener 1N4733A), LED
+    passives.js        Masse, résistance, potentiomètre, condensateur, interrupteur, bouton
+    sources.js         Alimentation DC, piles (Thévenin), source de courant, générateur (sinus, carré, LTC)
+    semiconductors.js  Diodes (1N4148, 1N4007, 1N5819, BAT54, Zener 1N4733A), LED
+    analog.js          Comparateur TLV3201, ampli op TLV9061
+    instruments.js     Oscilloscope deux voies
     esp32.js           Carte ESP32-DevKitC : GPIO, pull-ups, diodes de protection, ADC
   runtime/
     arduino.js         Exécute un sketch Arduino (sous-ensemble) sur l'ESP32 simulé
@@ -25,6 +30,7 @@ src/
     example.js         Montage et sketch de démonstration
 tests/
   datasheet.test.mjs   Chaque modèle confronté aux points de sa fiche technique
+  transient.test.mjs   Analyse transitoire : RC analytique, LTC, boîtier timecode comparé à ngspice
 docs/
   AJOUTER-UN-COMPOSANT.md   Procédure suivie par Claude pour intégrer un nouveau composant
 ```
@@ -39,7 +45,20 @@ On utilise la même méthode que SPICE pour le point de fonctionnement continu (
 4. **PWM.** Une sortie PWM n'est pas approximée par une tension moyenne (faux pour une LED, qui est non linéaire). On résout le circuit dans chaque phase (HIGH/LOW) et on moyenne les courants et puissances pondérés par le rapport cyclique. Les alertes utilisent les valeurs crêtes.
 5. **Casse.** Après chaque résolution, chaque composant décrit son état. S'il est détruit (LED à plus de 100 mA, résistance à plus de 2× sa puissance nominale), il devient un circuit ouvert et on résout à nouveau, comme dans la réalité.
 
-Limite actuelle : analyse **continue / quasi statique**. Les condensateurs, bobines et phénomènes rapides (rebonds, temps de montée) demandent une analyse transitoire, prévue à l'étape suivante (intégration trapézoïdale, même interface `stamp`).
+## L'analyse transitoire
+
+L'onglet **Oscilloscope** simule le circuit dans le temps, comme le `.tran` de SPICE (`solveTransient` dans `solver.js`) :
+
+1. **Point de départ.** Le point de fonctionnement DC, où chaque générateur délivre sa valeur moyenne : c'est l'état établi d'un signal qui tourne depuis longtemps, et les condensateurs de liaison sont chargés en conséquence.
+2. **Intégration.** Pas fixe, méthode des trapèzes (précise à l'ordre 2, sans amortissement artificiel). Le premier pas, et tout pas redécoupé, utilise Euler implicite pour amortir les discontinuités.
+3. **Robustesse.** Si Newton ne converge pas sur un pas, celui-ci est découpé en 4, jusqu'à 3 fois.
+4. **Condensateurs.** `ctx.capacitor(state, clé, a, b, C)` pose le modèle compagnon (conductance + source de courant) ; le moteur met à jour la tension et le courant mémorisés quand le pas est accepté. En DC, c'est un circuit ouvert.
+5. **Mesures.** Pour chaque composant, moyenne temporelle et extrêmes des grandeurs d'`evaluate`, passés à `describe` comme pour le PWM : les alertes (courant crête dans une diode, slew rate dépassé, tension inverse) portent sur toute la durée simulée. Chaque voie d'oscilloscope est mesurée (`measure.js`) et décodée en LTC.
+6. **Web Worker.** Le calcul tourne dans `tran-worker.js` pour ne pas figer l'interface (environ 50 000 pas par seconde sur les montages du boîtier timecode, 10 à 15 nœuds).
+
+Validation (`tests/transient.test.mjs`) : charge RC comparée à l'exponentielle exacte (erreur < 0,1 %), et circuits d'entrée et de sortie du boîtier timecode comparés aux simulations ngspice de `projets/timecode-ltc` : amplitudes à 0,1 % près, fronts à 0,3 µs près, retard du comparateur à 1 µs près (le pas de calcul).
+
+Pas encore couverts : bobines, pas de temps adaptatif, bruit, analyse fréquentielle (`.ac`).
 
 ## Le contrat d'un composant
 
@@ -58,7 +77,7 @@ Un composant est un objet JavaScript. Le moteur et l'interface ne connaissent qu
 | `describe(inst, avg, peak)` | Mesures lisibles, alertes, et éventuelle casse (`damage`) |
 | `symbol(inst, avg)`, `label(inst)` | Dessin SVG (unité : 20 px par pas de grille) |
 
-L'API `ctx` offerte à `stamp` : `v(n)`, `conductance(a, b, g)`, `current(a, b, I)`, `voltageSource(a, b, V, k)`, `branchI(k)`, `markLimited()`, `srcFactor`, `tempC`. Les briques de `devices.js` (`stampJunction`, `stampThevenin`, `fitIsFromVf`…) couvrent la plupart des besoins.
+L'API `ctx` offerte à `stamp` : `v(n)`, `conductance(a, b, g)`, `current(a, b, I)`, `transconductance(a, b, cp, cn, g)`, `voltageSource(a, b, V, k)`, `capacitor(state, clé, a, b, C)`, `branchI(k)`, `markLimited()`, `srcFactor`, `tempC`, et pour l'analyse transitoire `mode` (`"dc"` ou `"tran"`), `t`, `dt` et `vPrev(n)` (tension au pas précédent). Les briques de `devices.js` (`stampJunction`, `stampThevenin`, `fitIsFromVf`…) couvrent la plupart des besoins.
 
 ## L'ESP32
 
@@ -76,4 +95,4 @@ Le code est un **sous-ensemble d'Arduino** converti en JavaScript asynchrone (`d
 
 - Aujourd'hui : JavaScript moderne (modules ES), SVG, aucune dépendance, tests avec `node --test`.
 - Dès que le dépôt existe : Vite pour le développement, TypeScript progressif sur `engine/` et `components/`, CI GitHub Actions qui lance les tests de fiches techniques sur chaque PR.
-- Feuille de route : analyse transitoire (condensateurs, bobines, oscilloscope), transistors (2N2222, IRLZ44N), régulateurs (AMS1117), capteurs (DHT22, BME280) avec leurs protocoles, I²C/SPI simulés, export/import de montages.
+- Feuille de route : bobines et pas adaptatif, transistors (2N2222, IRLZ44N), régulateurs (AMS1117), capteurs (DHT22, BME280) avec leurs protocoles, I²C/SPI simulés, export/import de montages.

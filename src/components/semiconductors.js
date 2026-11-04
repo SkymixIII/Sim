@@ -19,6 +19,11 @@ export const DIODE_MODELS = {
     IFmax: 1, Pmax: 1.25, VRmax: 40,
     ref: "ON Semi 1N5819 : VF max 0,34 V à 0,1 A et 0,6 V à 1 A, IF(AV) 1 A, VRRM 40 V. Modèle SPICE usuel IS=31.7u N=1.373 RS=51m.",
   },
+  BAT54: {
+    label: "BAT54 (Schottky signal)", Is: 1.0e-7, n: 1.344, Rs: 3, BV: 30, Ibv: 1e-6,
+    IFmax: 0.3, Pmax: 0.25, VRmax: 30,
+    ref: "ST BAT54 : VF max 240 mV à 0,1 mA, 320 mV à 1 mA, 400 mV à 10 mA, 500 mV à 30 mA, 900 mV à 100 mA ; VRRM 30 V ; IF 300 mA. Ajustement IS=100n N=1.344 RS=3 sur les maxima (pessimiste). Ptot 250 mW : hypothèse, non relevée.",
+  },
   "1N4733A": {
     label: "1N4733A (Zener 5,1 V)", Is: 1e-12, n: 1.4, Rs: 7, BV: 4.757, Ibv: 0.049, nbv: 1.5,
     IFmax: 0.2, Pmax: 1, VRmax: Infinity, zener: true,

@@ -299,7 +299,26 @@ L'écart moyen de 117 µs vient presque entièrement de l'erreur d'étalonnage d
 - **BNC femelle 75 Ω de panneau** : la vraie 75 Ω coûte de 3 à 8 €. À 2,4 kHz, une 50 Ω conviendrait électriquement, mais elle n'est pas compatible mécaniquement à 100 % avec certaines fiches 75 Ω.
 - **47 µF X5R en 1206** : prévoir une perte de capacité de 20 à 30 % sous la tension continue (prise en compte dans la simulation, 37 µF chacun).
 
-## 12. Fichiers et reproduction
+## 12. Le boîtier dans l'Établi (émulateur du projet)
+
+L'Établi a reçu une analyse transitoire (intégration trapézoïdale, comme le `.tran` de ngspice), un condensateur, un générateur de signaux et de timecode LTC, le comparateur TLV3201, l'ampli op TLV9061, la diode BAT54 et un oscilloscope deux voies avec décodeur LTC. Le menu **Montages** charge le circuit d'entrée (mode TX) et le circuit de sortie (mode RX) avec les valeurs de `design.py`. On peut y changer l'amplitude et l'impédance de la source, la cadence ou la charge, puis relancer l'analyse.
+
+Les deux montages ont été comparés aux simulations ngspice de ce dossier (`tests/transient.test.mjs`) :
+
+| Cas | Établi | ngspice |
+|---|---|---|
+| A1 : 1 Vcc / 50 Ω, 25 i/s | 4 images exactes, retard 7,9 µs, IN− min 1,13 V | 4 images, 6,9 µs, 1,14 V |
+| A3 : 18 Vcc / 50 Ω, 24 i/s | 4 images, retard 3,3 µs, IN− min −0,32 V | 4 images, 2,4 µs, −0,32 V |
+| A4 : 3 Vcc / 1 kΩ, 29,97 DF | 4 images, retard 8,3 µs, IN− min 0,22 V | 4 images, 7,6 µs, 0,24 V |
+| B2 : charge 75 Ω | 0,984 Vcc, fronts 23,8 / 23,6 µs | 0,984 Vcc, 23,5 / 23,5 µs |
+| B4 : à vide | 1,977 Vcc, fronts 23,7 / 23,7 µs | 1,977 Vcc, 24,0 / 23,5 µs |
+| B5 : 600 Ω, 29,97 DF | 1,754 Vcc, fronts 23,7 / 23,7 µs | 1,753 Vcc, 23,5 / 23,5 µs |
+
+![Établi](figures/etabli_entree_tx.png)
+
+Le retard supplémentaire d'environ 1 µs vient du modèle du comparateur dans l'Établi, qui bascule un pas de calcul après son entrée. Les deux outils partagent les mêmes hypothèses de modèles (§9). Leur accord confirme les calculs, pas le comportement du vrai matériel.
+
+## 13. Fichiers et reproduction
 
 ```
 timecode-ltc/

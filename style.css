@@ -20,6 +20,9 @@
   --warn-soft: #e0a8001f;
   --ok: #23804f;
   --sel: #2a6fdb;
+  --ch1: #c8641f;
+  --ch2: #2a6fdb;
+  --screen: #dfe9e4;
   --font-ui: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-display: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
@@ -28,14 +31,14 @@
   :root:not([data-theme="light"]) {
     --bg: #0c1714; --panel: #11201b; --panel-2: #152721; --ink: #e4eee8; --muted: #8ea29a; --line: #22362f; --grid: #24392f;
     --copper: #e38a4a; --copper-soft: #e38a4a26; --trace-lo: #7d978d; --trace-hi: #ffad5e; --board: #173c31; --board-ink: #e9f2ec;
-    --danger: #ff6b5f; --danger-soft: #ff6b5f1f; --warn: #f0be3c; --warn-soft: #f0be3c1c; --ok: #4fc483; --sel: #6aa5ff;
+    --danger: #ff6b5f; --danger-soft: #ff6b5f1f; --warn: #f0be3c; --warn-soft: #f0be3c1c; --ok: #4fc483; --sel: #6aa5ff; --ch1: #ffa35c; --ch2: #79b0ff; --screen: #0f2a22;
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --bg: #0c1714; --panel: #11201b; --panel-2: #152721; --ink: #e4eee8; --muted: #8ea29a; --line: #22362f; --grid: #24392f;
   --copper: #e38a4a; --copper-soft: #e38a4a26; --trace-lo: #7d978d; --trace-hi: #ffad5e; --board: #173c31; --board-ink: #e9f2ec;
-  --danger: #ff6b5f; --danger-soft: #ff6b5f1f; --warn: #f0be3c; --warn-soft: #f0be3c1c; --ok: #4fc483; --sel: #6aa5ff;
+  --danger: #ff6b5f; --danger-soft: #ff6b5f1f; --warn: #f0be3c; --warn-soft: #f0be3c1c; --ok: #4fc483; --sel: #6aa5ff; --ch1: #ffa35c; --ch2: #79b0ff; --screen: #0f2a22;
   color-scheme: dark;
 }
 
@@ -100,11 +103,11 @@ button:focus-visible, .tab:focus-visible, textarea:focus-visible, input:focus-vi
 .request q { color: var(--ink); font-style: normal; }
 
 /* Plan de travail */
-.stage { grid-area: stage; display: grid; grid-template-rows: minmax(0, 1fr) auto; min-width: 0; }
+.stage { grid-area: stage; display: grid; grid-template-rows: minmax(0, 1fr) auto auto; min-width: 0; }
 .canvas-wrap { position: relative; overflow: auto; background: var(--bg); touch-action: manipulation; }
 #canvas { display: block; user-select: none; -webkit-user-select: none; }
 #canvas .gridpt { fill: var(--grid); }
-#canvas .w, #canvas .comp line, #canvas .comp polyline, #canvas .comp rect, #canvas .comp circle, #canvas .comp polygon, #canvas .ghost line, #canvas .ghost polyline, #canvas .ghost rect, #canvas .ghost circle, #canvas .ghost polygon {
+#canvas .w, #canvas .comp path, #canvas .ghost path, #canvas .comp line, #canvas .comp polyline, #canvas .comp rect, #canvas .comp circle, #canvas .comp polygon, #canvas .ghost line, #canvas .ghost polyline, #canvas .ghost rect, #canvas .ghost circle, #canvas .ghost polygon {
   stroke: var(--ink); stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round;
 }
 #canvas .comp .fill, #canvas .ghost .fill { fill: var(--ink); }
@@ -201,6 +204,42 @@ button:focus-visible, .tab:focus-visible, textarea:focus-visible, input:focus-vi
 .serial .err { color: #ff8a80; }
 .hint { margin: 0; font-size: 12px; color: var(--muted); line-height: 1.45; }
 
+/* Montages d'exemple */
+.examples select { font: inherit; border: 1px solid var(--line); background: var(--panel-2); color: var(--ink); border-radius: 6px; padding: 6px 8px; cursor: pointer; }
+.vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.panel code { font: 500 12px var(--font-mono); }
+
+/* Oscilloscope */
+#canvas .comp .scope-trace { stroke: var(--ch1); stroke-width: 1.6; }
+.tran-params { grid-template-columns: 1fr 1fr; }
+.tran-params label:last-child { grid-column: 1 / -1; }
+.pill.busy { color: var(--copper); border-color: var(--copper); }
+.pill.done { color: var(--ok); border-color: var(--ok); }
+.pill.stale { color: var(--warn); border-color: var(--warn); }
+.chan { display: grid; gap: 6px; }
+.chan h3 { display: flex; align-items: center; gap: 8px; }
+.chan h3 .sw { width: 14px; height: 3px; border-radius: 2px; flex: none; }
+.ltc-box { border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; background: var(--panel-2); font-size: 12.5px; line-height: 1.45; }
+.ltc-box .tc { font: 600 15px var(--font-mono); letter-spacing: 0.03em; }
+.ltc-box.ok { border-color: var(--ok); }
+.ltc-box.none { color: var(--muted); }
+.scope { border-top: 1px solid var(--line); background: var(--panel); padding: 8px 14px 10px; display: grid; gap: 6px; }
+.scope-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; }
+.scope-ctl { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 12.5px; color: var(--muted); }
+.scope-ctl label { display: flex; align-items: center; gap: 6px; }
+.scope-ctl select { font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 5px; padding: 3px 6px; }
+.scope-ctl .pos input { width: 160px; accent-color: var(--copper); }
+.scope-ctl button { border: 1px solid var(--line); background: var(--panel-2); border-radius: 6px; padding: 4px 10px; cursor: pointer; }
+.scope-plot svg { display: block; width: 100%; height: 240px; }
+.scope-plot .bg { fill: var(--screen); }
+.scope-plot .gridl { stroke: var(--grid); stroke-width: 1; opacity: 0.6; }
+.scope-plot .axis { fill: var(--muted); font: 500 10.5px var(--font-mono); }
+.scope-plot .tr1 { stroke: var(--ch1); stroke-width: 1.5; fill: none; }
+.scope-plot .tr2 { stroke: var(--ch2); stroke-width: 1.5; fill: none; }
+.scope-plot .name1 { fill: var(--ch1); font: 600 11px var(--font-ui); }
+.scope-plot .name2 { fill: var(--ch2); font: 600 11px var(--font-ui); }
+.scope-plot .mark { stroke: var(--muted); stroke-dasharray: 3 3; }
+
 @media (max-width: 980px) {
   .app {
     height: auto;
@@ -212,5 +251,6 @@ button:focus-visible, .tab:focus-visible, textarea:focus-visible, input:focus-vi
   .palette, .panel { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
   #palette-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
   .panel { overflow: visible; }
+  .scope-ctl .pos input { width: 110px; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }

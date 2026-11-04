@@ -1,7 +1,8 @@
 // Du schéma (composants placés + fils) à la netlist, puis simulation complète :
 // connexions, masse, composants détruits, PWM moyenné, diagnostics.
-import { solveDC } from "./solver.js";
+import { solveDC, solveTransient } from "./solver.js";
 import { OPEN_G } from "./devices.js";
+import { measureTrace } from "./measure.js";
 import { REGISTRY } from "../components/index.js";
 
 const key = (x, y) => `${x},${y}`;
@@ -170,4 +171,52 @@ export function simulate(circuit, opts = {}) {
     if (!newlyDamaged) return { ok: true, net, nodeV, comps };
   }
   return { ok: false, error: "Trop de composants détruits en cascade." };
+}
+
+/**
+ * Analyse transitoire du schéma : enregistre les voies des oscilloscopes,
+ * mesure et décode chaque voie, puis décrit chaque composant à partir des
+ * moyennes et extrêmes sur la durée simulée.
+ * opts : { tstop, dt, measureFrom }
+ */
+export function simulateTransient(circuit, opts) {
+  const net = buildNetlist(circuit);
+  const scopes = [];
+  net.elements.forEach((el) => {
+    if (!el.def.isScope) return;
+    el.def.pins.forEach((p, i) => scopes.push({ comp: el.inst.id, pin: p.id, name: el.inst.params[`name${i + 1}`] || p.id, node: el.nodes[i] }));
+  });
+  const record = [...new Set(scopes.map((s) => s.node))];
+  const r = solveTransient(net.nodeCount, net.elements, { tstop: opts.tstop, dt: opts.dt, tempC: opts.tempC, record });
+  if (!r.ok) return { ok: false, error: r.error };
+  const from = opts.measureFrom ?? 0;
+  const channels = scopes.map((s) => {
+    const v = r.traces.get(s.node);
+    // une voie non branchée (noeud isolé) n'a rien à afficher
+    const wired = net.elements.some((el) => !el.def.isScope && el.nodes.includes(s.node)) || s.node === 0;
+    return { ...s, wired, v, m: wired ? measureTrace(r.t, v, from) : null };
+  });
+  const comps = new Map();
+  net.elements.forEach((el, j) => {
+    const c = el.inst;
+    const def = REGISTRY[c.type];
+    const info = c.damaged ? { readings: [["État", "détruit"]], warnings: [{ level: "danger", text: c.damaged }] } : def.describe(c, r.avg[j], r.peak[j]);
+    if (info.damage && !c.damaged) c.damaged = info.damage;
+    comps.set(c.id, { avg: r.avg[j], peak: r.peak[j], info });
+  });
+  return { ok: true, t: r.t, channels, comps, net };
+}
+
+/**
+ * Enveloppe sérialisable de simulateTransient (pour un Web Worker) : traces en
+ * Float32Array transférables, comptes rendus des composants, composants détruits.
+ */
+export function runTransientJob(circuit, opts) {
+  const r = simulateTransient(circuit, opts);
+  if (!r.ok) return { message: { ok: false, error: r.error }, transfer: [] };
+  const t = Float32Array.from(r.t);
+  const channels = r.channels.map(({ v, ...c }) => ({ ...c, v: Float32Array.from(v) }));
+  const comps = [...r.comps].map(([id, x]) => [id, x]);
+  const damaged = circuit.components.filter((c) => c.damaged).map((c) => [c.id, c.damaged]);
+  return { message: { ok: true, t, channels, comps, damaged }, transfer: [t.buffer, ...channels.map((c) => c.v.buffer)] };
 }
