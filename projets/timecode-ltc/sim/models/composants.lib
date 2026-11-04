@@ -1,0 +1,169 @@
+* =====================================================================
+*  Modèles ngspice du boîtier timecode LTC
+*  Chaque paramètre est tiré de la fiche technique citée. Quand une valeur
+*  n'est pas publiée, elle est marquée HYPOTHESE et ses effets sont discutés
+*  dans docs/RAPPORT.md. Aucun de ces modèles n'est un modèle constructeur :
+*  les modèles PSpice TI n'ont pas pu être téléchargés depuis l'environnement
+*  de travail. Ce sont des macro-modèles comportementaux calés sur la fiche.
+* =====================================================================
+
+* ---------------------------------------------------------------------
+* BAT54 (ST, fiche BAT54 rév. : VF max 240 mV @0,1 mA, 320 mV @1 mA,
+* 400 mV @10 mA, 500 mV @30 mA, 900 mV @100 mA ; VRRM 30 V ; IF 300 mA ;
+* IFSM 1 A ; Cj 10 pF @1 V). Ajustement : pente 80 mV/décade -> N = 1,344,
+* IS = 1,0e-7 A, RS = 3 ohms (compromis entre 30 mA et 100 mA). Les valeurs
+* de la fiche sont des maxima : le modèle est pessimiste pour l'écrêtage.
+.model BAT54 D(IS=1.0e-7 N=1.344 RS=3 CJO=10p M=0.5 VJ=0.35 BV=30 IBV=1u TT=5n)
+
+* BAT54S : deux BAT54 en série. Broches SOT-23 : 1 = anode D1 (vers GND),
+* 2 = cathode D2 (vers le rail), 3 = point commun.
+.subckt BAT54S 1 2 3
+Dlo 1 3 BAT54
+Dhi 3 2 BAT54
+.ends BAT54S
+
+* ---------------------------------------------------------------------
+* SMAJ15CA bidirectionnel (Littelfuse/Bourns/Diodes : VRWM 15 V,
+* VBR min 16,7 V @1 mA, VC 24,4 V @ IPP 16,4 A).
+* RS = (24,4 - 16,7) / 16,4 = 0,47 ohm. Capacité : HYPOTHESE 500 pF
+* (non relevée ; sans effet à 2,4 kHz : Xc = 130 kohms).
+.model TVSHALF D(IS=1e-12 N=1 RS=0.235 BV=16.7 IBV=1m CJO=1n)
+.subckt SMAJ15CA A K
+D1 A M TVSHALF
+D2 K M TVSHALF
+.ends SMAJ15CA
+
+* ---------------------------------------------------------------------
+* SS14 (Vishay SS14 : VRRM 40 V, IF(AV) 1 A, VF max 0,50 V @ 1 A).
+* Ajustement : VF = 0,50 V @ 1 A, HYPOTHESE 0,35 V @ 100 mA.
+.model SS14 D(IS=5e-6 N=1.15 RS=0.06 CJO=110p BV=40)
+
+* ---------------------------------------------------------------------
+* LED rouge / verte génériques 0603 (VF ~1,9-2,0 V @ 2 mA). HYPOTHESE :
+* le modèle n'influe que sur le courant des LED (budget d'énergie).
+.model LEDR D(IS=1e-19 N=1.7 RS=8 BV=5)
+.model LEDG D(IS=1e-20 N=1.75 RS=8 BV=5)
+
+* ---------------------------------------------------------------------
+* TLV3201 (TI SBOS561) - comparateur push-pull, sortie rail à rail
+* Broches DBV : 1 OUT, 2 GND, 3 IN+, 4 IN-, 5 VCC
+* Fiche : VCC 2,7-5,5 V ; VOS 1 mV typ / 3 mV max ; hystérésis interne
+* 1,2 mV typ ; mode commun VEE-0,2 à VCC+0,2 V ; tpd 47 ns typ / 50 ns max
+* (20 mV d'overdrive, CL 15 pF) ; tr 4,8 ns ; IQ 36-40 uA ;
+* VOL 230 mV @ 4 mA et VOH = VCC-210 mV @ 4 mA (2,7 V) -> Rout ~ 55 ohms ;
+* entrées : -0,5 V à VCC+0,5 V, courant d'entrée max +/-10 mA.
+* Le modèle ignore l'hystérésis interne (1,2 mV) : c'est pessimiste.
+.subckt TLV3201 OUT VSSX INP INN VCC params: VOS=1m
+Iq VCC VSSX 40u
+Dp1 INP VCC DESD
+Dn1 VSSX INP DESD
+Dp2 INN VCC DESD
+Dn2 VSSX INN DESD
+.model DESD D(IS=1e-15 N=1 RS=20)
+Bcore n1 VSSX V = V(VCC,VSSX)/2*(1+tanh((V(INP,INN)-VOS)/0.3m))
+Rd n1 n2 1k
+Cd n2 VSSX 40p
+Bout n3 VSSX V = V(VSSX) + min(max(V(n2,VSSX),0),V(VCC,VSSX))
+Rout n3 OUT 55
+.ends TLV3201
+
+* ---------------------------------------------------------------------
+* TLV9061 (TI SBOS839) - AOP RRIO 10 MHz, 1,8-5,5 V
+* Broches DBV : 1 OUT, 2 V-, 3 IN+, 4 IN-, 5 V+
+* Fiche : GBW 10 MHz ; SR 6,5 V/us ; AOL 104 dB min (RL 10k) ; VOS 0,3 mV typ
+* 1,6 mV max ; mode commun V- -0,1 à V+ +0,1 V ; IQ 538 uA typ ;
+* excursion à 20 mV des rails sous 10 kohms, 60 mV sous 2 kohms ;
+* court-circuit +/-50 mA ; entrées protégées par diodes, +/-10 mA max.
+* Macro-modèle à un pôle : gm = 2*pi*GBW*Cc, limitation de courant de
+* l'étage d'entrée = SR*Cc, sortie limitée à 50 mA (tanh), Ro 25 ohms
+* (HYPOTHESE, déduite des 60 mV sous 2 kohms). Pas de second pôle : la
+* stabilité sur charge capacitive n'est pas évaluée par ce modèle
+* (la sortie est isolée par 56 ohms dans le montage).
+.subckt TLV9061 OUT VN INP INN VP params: VOS=0
+Iq VP VN 538u
+Dp1 INP VP DESD
+Dn1 VN INP DESD
+Dp2 INN VP DESD
+Dn2 VN INN DESD
+.model DESD D(IS=1e-15 N=1 RS=20)
+Bmid mid 0 V = (V(VP)+V(VN))/2
+Bgm mid nint I = 65u*tanh((V(INP)-V(INN)+VOS)*628u/65u)
+Cc nint mid 10p
+Raol nint mid 252Meg
+Bx x 0 V = min(max(V(nint),V(VN)+0.02),V(VP)-0.02)
+Bsrc VP OUT I = max(50m*tanh((V(x)-V(OUT))/1.25),0)
+Bsnk OUT VN I = max(-50m*tanh((V(x)-V(OUT))/1.25),0)
+.ends TLV9061
+
+* ---------------------------------------------------------------------
+* Broche de sortie ESP32-S3 (fiche ESP32-S3-WROOM-1, DC characteristics) :
+* VOH >= 0,8 VDD à IOH 40 mA -> Ron_haut = 0,66 V / 40 mA = 16,5 ohms
+* VOL <= 0,1 VDD à IOL 28 mA -> Ron_bas = 0,33 V / 28 mA = 11,8 ohms
+* CTRL : niveau logique demandé (0 / 1 V). OE : 1 = sortie active,
+* 0 = broche en entrée (haute impédance, fuite 50 nA négligée).
+* Fronts de la commande : 5 ns (HYPOTHESE).
+.subckt ESP_GPIO_OUT PIN VDD VSSX CTRL OE
+Bh VDD PIN I = V(OE)*V(CTRL)*(V(VDD)-V(PIN))/16.5
+Bl PIN VSSX I = V(OE)*(1-V(CTRL))*(V(PIN)-V(VSSX))/11.8
+Cp PIN VSSX 2p
+.ends ESP_GPIO_OUT
+
+* Broche d'entrée ESP32-S3 : CIN 2 pF, fuite 50 nA max, diodes de protection.
+* VIH = 0,75 VDD, VIL = 0,25 VDD (vérifiés en post-traitement).
+.subckt ESP_GPIO_IN PIN VDD VSSX
+Cp PIN VSSX 2p
+Rl PIN VSSX 66Meg
+Dp PIN VDD DESD
+Dn VSSX PIN DESD
+.model DESD D(IS=1e-15 N=1 RS=20)
+.ends ESP_GPIO_IN
+
+* ---------------------------------------------------------------------
+* TLV75733P (TI SBVS320) - LDO 1 A
+* Broches DBV : 1 IN, 2 GND, 3 EN, 4 NC, 5 OUT
+* Fiche : VOUT 3,3 V +/-1 % ; dropout 300 mV typ / 425 mV max à 1 A
+* (-> Rdo = 0,30 / 0,425 ohm) ; régulation de charge 0,060 V/A (DBV) ;
+* limitation 1,2 A min / 1,55 A typ ; IQ 25 uA ; EN : VHI 1 V, VLO 0,3 V ;
+* COUT 1 uF min, 200 uF max.
+* Macro-modèle : transconductance gm = 1/0,060 A/V (reproduit la régulation
+* de charge statique), pôle de boucle à 200 kHz (HYPOTHESE : la fiche ne
+* donne la réponse transitoire qu'en courbe), limitation par le dropout
+* I <= (VIN-VOUT)/Rdo et par ICL.
+.subckt TLV75733P IN VSSX EN OUT params: RDO=0.30 ICL=1.55 VNOM=3.3
+Iq IN VSSX 25u
+Ben en_ok 0 V = (V(EN,VSSX) > 0.65) ? 1 : 0
+Berr e1 0 V = V(en_ok)*(VNOM + 0.06e-3 - V(OUT,VSSX))*16.67
+Rp e1 e2 1k
+Cp e2 0 {1/(6.2832*200e3*1k)}
+Bpass IN OUT I = max(min(min(V(e2), max(V(IN,OUT),0)/RDO), ICL), 0)
+Rdis OUT VSSX 1Meg
+.ends TLV75733P
+
+* ---------------------------------------------------------------------
+* Cellule LiPo 2000 mAh à l'échelle de quelques millisecondes :
+* f.é.m. VOCV (fixée selon l'état de charge étudié) + résistance interne.
+* HYPOTHESE : Rint = 120 mohms (ordre de grandeur des cellules pouch
+* 2000 mAh ; à mesurer sur la cellule retenue). Constante de polarisation
+* 30 mohms // 2 F.
+.subckt LIPO P N params: VOCV=3.7 RINT=0.12
+Vb a N {VOCV}
+Rs a b {RINT}
+Rp b P 0.03
+Cpol b P 2
+.ends LIPO
+
+* ---------------------------------------------------------------------
+* AO3401A (Alpha & Omega) - P-MOS 30 V. Fiche : VGS(th) -0,5/-0,9/-1,3 V ;
+* RDS(on) max 60 mohms @ VGS -4,5 V, 85 mohms @ -2,5 V. Modèle « interrupteur » :
+* conductance croissante entre |VGS| = 1 V et 2,5 V, plafonnée à 1/60 mohms ;
+* diode de structure drain -> source.
+.subckt AO3401A G S D
+Bch S D I = V(S,D) * min(16.7, max(0, 11.8*(V(S,G)-1.0)/1.5))
+Dbody D S DBODYP
+.model DBODYP D(IS=1e-12 N=1.1 RS=0.02)
+.ends AO3401A
+
+* Contact de l'inverseur TX/RX : 30 mohms fermé, 1 Tohm ouvert (+1 pF en
+* parallèle dans le netlist). HYPOTHESE : valeurs typiques d'un petit
+* inverseur à glissière ; la fiche C&K donne 30 mohms max (contacts or).
+.model SWCONT SW(RON=0.03 ROFF=1e12 VT=0.5 VH=0.1)

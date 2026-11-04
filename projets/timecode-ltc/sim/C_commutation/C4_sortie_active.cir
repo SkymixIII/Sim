@@ -1,0 +1,30 @@
+* C4_sortie_active
+.include ../models/composants.lib
+
+.include bnc_sans_inverseur.inc
+.include /home/claude/sim/projets/timecode-ltc/sim/gen/entree.inc
+.include /home/claude/sim/projets/timecode-ltc/sim/gen/sortie.inc
+
+Va v3v3a 0 3.3
+Vd v3v3 0 3.3
+XESP ltc_rx_gpio v3v3 0 ESP_GPIO_IN
+
+Vmtx mode_tx 0 1
+Vmrx mode_rx 0 1
+Aext %vd([n_src 0]) mext
+.model mext filesource (file="c4_ext.pwl" amploffset=[0] amplscale=[1] timeoffset=0 timescale=1 timerelative=false amplstep=false)
+Rsrc n_src bnc_c 1k
+Actl %vd([ctl 0]) mctl
+.model mctl filesource (file="c4_gpio.pwl" amploffset=[0] amplscale=[1] timeoffset=0 timescale=1 timerelative=false amplstep=false)
+Voe oe 0 1
+XG ltc_tx_gpio v3v3 0 ctl oe ESP_GPIO_OUT
+
+.control
+set wr_singlescale
+set wr_vecnames
+option numdgt=7
+tran 0.5u 0.484 0 0.5u
+wrdata C4_sortie_active.dat v(bnc_c) v(cmp_inn) v(ltc_rx_gpio)
+quit
+.endc
+.end

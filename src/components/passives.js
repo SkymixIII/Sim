@@ -144,3 +144,56 @@ function switchDef({ type, name, momentary }) {
 
 export const toggleSwitch = switchDef({ type: "switch", name: "Interrupteur", momentary: false });
 export const pushButton = switchDef({ type: "button", name: "Bouton poussoir", momentary: true });
+
+// Condensateur : circuit ouvert en DC, modèle compagnon trapézoïdal en transitoire.
+const DIELECTRICS = {
+  c0g: { label: "Céramique C0G/NP0", polar: false, note: "C0G : capacité stable (±30 ppm/°C), sans effet de la tension continue." },
+  x5r: { label: "Céramique X5R/X7R", polar: false, note: "X5R/X7R : la capacité baisse avec la tension continue appliquée (souvent −20 à −50 %). Non modélisé : entrez la capacité effective." },
+  elec: { label: "Électrolytique aluminium", polar: true, note: "Électrolytique : polarisé, une tension inverse de plus de 1 V le dégrade." },
+};
+
+export const capacitor = {
+  type: "capacitor",
+  name: "Condensateur",
+  category: "Passifs",
+  summary: "Condensateur : bloque le continu, se charge et se décharge en analyse transitoire.",
+  pins: [{ id: "1", label: "1 (+ si polarisé)", x: 0, y: 0 }, { id: "2", x: 4, y: 0 }],
+  bounds: { x: 0, y: -1, w: 4, h: 2 },
+  rotatable: true,
+  params: [
+    { key: "C", label: "Capacité", kind: "number", unit: "F", default: 100e-9, min: 1e-15 },
+    { key: "dielectric", label: "Technologie", kind: "select", default: "x5r", options: Object.entries(DIELECTRICS).map(([value, d]) => ({ value, label: d.label })) },
+    { key: "Vmax", label: "Tension nominale", kind: "select", unit: "V", default: 50,
+      options: [6.3, 10, 16, 25, 50, 100].map((v) => ({ value: v, label: `${String(v).replace(".", ",")} V` })) },
+  ],
+  datasheet: {
+    source: "Condensateur idéal (pas d'ESR, pas de fuite). En DC : circuit ouvert. En transitoire : intégration trapézoïdale, comme SPICE.",
+    notes: Object.values(DIELECTRICS).map((d) => d.note),
+  },
+  stamp(ctx, inst, [a, b], br, state) { ctx.capacitor(state, "c", a, b, inst.params.C); },
+  evaluate(ctx, inst, [a, b], br, state) {
+    const V = ctx.v(a) - ctx.v(b);
+    const I = ctx.mode === "tran" ? state.caps?.c?.i ?? 0 : 0;
+    return { V, I, Vmin: V, Vabs: Math.abs(V) };
+  },
+  describe(inst, avg, peak) {
+    const { Vmax, C, dielectric } = inst.params;
+    const d = DIELECTRICS[dielectric];
+    const warnings = [];
+    let damage;
+    const vpk = Math.max(Math.abs(peak.V ?? 0), Math.abs(peak.Vmin ?? 0));
+    if (vpk > 1.5 * Vmax) damage = `Claqué : ${fmt(vpk, "V")} pour ${fmt(Vmax, "V")} nominal.`;
+    else if (vpk > Vmax) warnings.push({ level: "danger", text: `${fmt(vpk, "V")} au-delà de la tension nominale (${fmt(Vmax, "V")}).` });
+    if (d.polar && (peak.Vmin ?? 0) < -1) warnings.push({ level: "danger", text: `Polarisé en inverse (${fmt(peak.Vmin, "V")}).` });
+    return {
+      readings: [["Tension moyenne", fmt(avg.V, "V")], ["Tension crête", fmt(vpk, "V")], ["Courant crête", fmt(Math.abs(peak.I ?? 0), "A")], ["Énergie stockée (moy.)", fmt(0.5 * C * (avg.V ?? 0) ** 2, "J")]],
+      warnings, damage,
+    };
+  },
+  label: (inst) => fmt(inst.params.C, "F"),
+  symbol: (inst) => {
+    const polar = DIELECTRICS[inst.params.dielectric]?.polar;
+    const right = polar ? `<path d="M48,-14 Q42,0 48,14"/>` : `<line class="thick" x1="45" y1="-14" x2="45" y2="14"/>`;
+    return `${lead(0, 35)}<line class="thick" x1="35" y1="-14" x2="35" y2="14"/>${right}${lead(polar ? 44 : 45, 80)}${polar ? `<text class="pm" x="22" y="-8">+</text>` : ""}`;
+  },
+};

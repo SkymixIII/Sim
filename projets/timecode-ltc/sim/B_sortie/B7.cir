@@ -1,0 +1,27 @@
+* B7
+.include ../models/composants.lib
+
+.include /home/claude/sim/projets/timecode-ltc/sim/gen/bnc.inc
+.include /home/claude/sim/projets/timecode-ltc/sim/gen/sortie.inc
+Va v3v3a 0 3.3
+Vd v3v3 0 3.3
+Vmtx mode_tx 0 0
+Vmrx mode_rx 0 1
+Actl %vd([ctl 0]) ctlmod
+.model ctlmod filesource (file="b7_gpio.pwl" amploffset=[0] amplscale=[1] timeoffset=0 timescale=1 timerelative=false amplstep=false)
+* GPIO5 en entrée (haute impédance) tant que le LTC n'est pas généré : la
+* liaison C7//C8 est alors pré-chargée à VCC/2 par R11/R12 (voir rapport)
+Voe oe 0 pwl(0 0 0.0018 0 0.0018009999999999999 1)
+XG ltc_tx_gpio v3v3 0 ctl oe ESP_GPIO_OUT
+Rin_idle ltc_in_raw 0 1Meg
+Rshort bnc_c 0 0.01
+
+.control
+set wr_singlescale
+set wr_vecnames
+option numdgt=7
+tran 1u 0.1 0 1u
+wrdata B7.dat v(bnc_c) v(opa_out) v(out_p) i(va)
+quit
+.endc
+.end

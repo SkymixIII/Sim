@@ -1,16 +1,17 @@
 // Interface : plan de travail SVG, palette, panneau de mesures, code ESP32.
 import { COMPONENTS, REGISTRY, defaultParams } from "../components/index.js";
 import { ESP32_GPIO } from "../components/esp32.js";
-import { simulate, pinPositions, rotatePoint } from "../engine/circuit.js";
+import { simulate, pinPositions, rotatePoint, runTransientJob } from "../engine/circuit.js";
 import { fmt, parseSI } from "../engine/units.js";
 import { SketchRunner } from "../runtime/arduino.js";
-import { exampleCircuit, EXAMPLE_SKETCH } from "./example.js";
+import { exampleCircuit, EXAMPLE_SKETCH, EXAMPLES } from "./example.js";
 
 const G = 20;          // pixels par pas de grille
 const COLS = 64, ROWS = 40;
 const STORE = "etabli.circuit.v1", STORE_CODE = "etabli.code.v1";
 
 const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]));
 const svg = $("canvas");
 const wrap = $("canvas-wrap");
 svg.setAttribute("width", COLS * G);
@@ -24,6 +25,7 @@ let circuit = (() => {
   return exampleCircuit();
 })();
 let sim = null;
+let tranResult = null;     // dernière analyse transitoire { t, channels, comps, version, opts }
 let selection = null;      // { kind: "comp" | "wire", id }
 let tool = "select";       // "select" | "wire" | { place: type }
 let wireFrom = null;       // point de départ d'un fil
@@ -50,10 +52,12 @@ function resimulate() {
 }
 
 let frame = 0;
+let circuitVersion = 0;
 function refresh({ persistNow = true } = {}) {
+  circuitVersion++;
   resimulate();
   if (persistNow) persist();
-  if (!frame) frame = requestAnimationFrame(() => { frame = 0; render(); renderInspector(); renderStatus(); });
+  if (!frame) frame = requestAnimationFrame(() => { frame = 0; render(); renderInspector(); renderStatus(); if (tranResult) renderScopeState(); });
 }
 
 // ---------- Rendu du plan de travail ----------
@@ -322,8 +326,33 @@ $("tool-wire").onclick = () => setTool(tool === "wire" ? "select" : "wire");
 $("act-rotate").onclick = rotateSelection;
 $("act-delete").onclick = deleteSelection;
 $("act-repair").onclick = repairAll;
-$("act-reset").onclick = () => { circuit = exampleCircuit(); codeEl.value = EXAMPLE_SKETCH; save(STORE_CODE, codeEl.value); selection = null; attachRunner(); refresh(); };
-$("act-clear").onclick = () => { circuit = { components: [], wires: [] }; selection = null; attachRunner(); refresh(); };
+const exampleSel = $("act-example");
+exampleSel.innerHTML += EXAMPLES.map((x) => `<option value="${x.id}">${esc(x.name)}</option>`).join("");
+exampleSel.onchange = () => {
+  const ex = EXAMPLES.find((x) => x.id === exampleSel.value);
+  exampleSel.value = "";
+  if (!ex) return;
+  circuit = ex.circuit();
+  if (ex.sketch) { codeEl.value = EXAMPLE_SKETCH; save(STORE_CODE, codeEl.value); }
+  selection = null;
+  tranResult = null;
+  attachRunner();
+  refresh();
+  if (ex.tran) {
+    $("tran-stop").value = String(ex.tran.tstop * 1e3);
+    for (const o of $("tran-dt").options) if (Number(o.value) === ex.tran.dt) o.selected = true;
+    $("tran-from").value = String(ex.tran.from * 1e3);
+    $("scope-note").textContent = ex.note;
+    $("scope-note").hidden = false;
+    showTab("scope");
+    runTransient();
+  } else {
+    $("scope-note").hidden = true;
+    renderScopePanel();
+    showTab("inspect");
+  }
+};
+$("act-clear").onclick = () => { circuit = { components: [], wires: [] }; selection = null; tranResult = null; renderScopePanel(); attachRunner(); refresh(); };
 
 document.addEventListener("keydown", (e) => {
   if (e.target.closest("input, textarea, select")) return;
@@ -343,10 +372,10 @@ function paramField(def, comp, p) {
   }
   if (p.kind === "range") return `<label for="${id}">${p.label} : ${Math.round(val * 100)} %<input type="range" id="${id}" data-param="${p.key}" min="${p.min}" max="${p.max}" step="${p.step}" value="${val}"></label>`;
   if (p.kind === "bool") return `<label class="check" for="${id}"><input type="checkbox" id="${id}" data-param="${p.key}"${val ? " checked" : ""}>${p.label}</label>`;
+  if (p.kind === "text") return `<label for="${id}">${p.label}<input type="text" id="${id}" data-param="${p.key}" value="${esc(val)}"></label>`;
   return `<label for="${id}">${p.label} (${p.unit})<input type="text" id="${id}" data-param="${p.key}" value="${fmt(val, p.unit).replace(` ${p.unit}`, "").replace(" ", "")}" inputmode="decimal"></label>`;
 }
 
-const esc = (s) => String(s).replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]));
 
 function renderInspector() {
   const panel = $("panel-inspect");
@@ -373,7 +402,8 @@ function renderInspector() {
     <div><h2>${def.name}${def.label?.(comp) ? ` · ${esc(def.label(comp))}` : ""}</h2><p class="summary">${def.summary}</p></div>
     ${info.warnings.length ? `<div class="alerts">${info.warnings.map((w) => `<div class="alert ${w.level}">${esc(w.text)}</div>`).join("")}</div>` : ""}
     ${def.params.length ? `<div class="params">${def.params.map((p) => paramField(def, comp, p)).join("")}</div>` : ""}
-    ${info.readings.length ? `<div><h3>Mesures</h3><table class="readings">${info.readings.map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join("")}</table></div>` : ""}
+    ${info.readings.length ? `<div><h3>${tranResult ? "Point de fonctionnement DC" : "Mesures"}</h3><table class="readings">${info.readings.map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join("")}</table></div>` : ""}
+    ${tranInspector(comp)}
     <div class="row">${def.rotatable ? `<button data-act="rotate">Pivoter</button>` : ""}<button data-act="delete">Supprimer</button>${comp.damaged ? `<button data-act="repair" class="primary">Remplacer le composant</button>` : ""}${def.programmable ? `<button data-act="code">Ouvrir le code</button>` : ""}</div>
     ${ds ? `<details class="datasheet"><summary>Fiche technique et modèle</summary><p>${esc(ds.source)}</p>${ds.notes.length ? `<ul>${ds.notes.map((n) => `<li>${esc(n)}</li>`).join("")}</ul>` : ""}</details>` : ""}`;
 }
@@ -397,6 +427,7 @@ $("panel-inspect").addEventListener("change", (e) => {
   if (p.kind === "bool") value = e.target.checked;
   else if (p.kind === "select") value = p.options.find((o) => String(o.value) === e.target.value).value;
   else if (p.kind === "range") value = Number(e.target.value);
+  else if (p.kind === "text") value = e.target.value;
   else {
     value = parseSI(e.target.value);
     if (!Number.isFinite(value) || (p.min !== undefined && value < p.min)) { e.target.setCustomValidity("Valeur invalide, ex. 220, 4k7, 1M"); e.target.reportValidity(); return; }
@@ -435,7 +466,7 @@ $("status").addEventListener("click", (e) => {
 
 // ---------- Onglets ----------
 function showTab(name) {
-  for (const t of ["inspect", "code"]) {
+  for (const t of ["inspect", "scope", "code"]) {
     $(`tab-${t}`).classList.toggle("active", t === name);
     $(`tab-${t}`).setAttribute("aria-selected", t === name);
     $(`panel-${t}`).hidden = t !== name;
@@ -443,6 +474,7 @@ function showTab(name) {
 }
 $("tab-inspect").onclick = () => showTab("inspect");
 $("tab-code").onclick = () => showTab("code");
+$("tab-scope").onclick = () => { showTab("scope"); renderScopePanel(); };
 
 // ---------- Code ESP32 ----------
 const codeEl = $("code");
@@ -533,3 +565,180 @@ refresh({ persistNow: false });
 attachRunner();
 if (runner) { serialLog("--- démarrage ---"); runner.start(codeEl.value); }
 wrap.scrollTo(0, 0);
+
+// ---------- Analyse transitoire et oscilloscope ----------
+function tranInspector(comp) {
+  const x = tranResult?.comps.get(comp.id);
+  if (!x) return "";
+  const stale = tranResult.version !== circuitVersion;
+  return `<div><h3>Sur l'analyse transitoire${stale ? " (schéma modifié depuis)" : ""}</h3>
+    ${x.info.warnings.length ? `<div class="alerts">${x.info.warnings.map((w) => `<div class="alert ${w.level}">${esc(w.text)}</div>`).join("")}</div>` : ""}
+    <table class="readings">${x.info.readings.map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join("")}</table></div>`;
+}
+
+let worker = null, jobId = 0;
+function getWorker() {
+  if (worker !== null) return worker;
+  try { worker = new Worker(new URL("../engine/tran-worker.js", import.meta.url), { type: "module" }); }
+  catch { worker = false; }
+  return worker;
+}
+
+function tranState(cls, text) {
+  const el = $("tran-state");
+  el.className = `pill ${cls}`;
+  el.textContent = text;
+}
+
+function readMs(id, fallback) {
+  const v = parseSI($(id).value);
+  return Number.isFinite(v) && v >= 0 ? v * 1e-3 : fallback;
+}
+
+function runTransient() {
+  const tstop = readMs("tran-stop", 0.12);
+  const dt = Number($("tran-dt").value);
+  const measureFrom = Math.min(readMs("tran-from", 0), tstop * 0.9);
+  const steps = Math.round(tstop / dt);
+  if (!circuit.components.some((c) => REGISTRY[c.type].isScope)) {
+    tranState("error", "aucun oscilloscope");
+    $("scope-results").innerHTML = `<div class="alert warn">Placez un oscilloscope (catégorie Instruments) et branchez ses voies sur les points à observer.</div>`;
+    return;
+  }
+  if (steps > 500000 || steps < 10) {
+    tranState("error", "durée / pas hors limites");
+    $("scope-results").innerHTML = `<div class="alert warn">${steps} pas de calcul demandés : restez entre 10 et 500 000 (durée ÷ pas).</div>`;
+    return;
+  }
+  const opts = { tstop, dt, measureFrom };
+  const payload = { components: circuit.components.map(({ rt, ...c }) => c), wires: circuit.wires };
+  const version = circuitVersion;
+  const id = ++jobId;
+  tranState("busy", `calcul de ${steps.toLocaleString("fr-FR")} pas…`);
+  $("tran-run").disabled = true;
+  const t0 = performance.now();
+  const done = (msg) => {
+    if (msg.id !== id) return;
+    $("tran-run").disabled = false;
+    if (!msg.ok) { tranState("error", "échec"); $("scope-results").innerHTML = `<div class="alert danger">${esc(msg.error)}</div>`; return; }
+    for (const [cid, why] of msg.damaged) { const c = circuit.components.find((x) => x.id === cid); if (c && !c.damaged) c.damaged = why; }
+    tranResult = { t: msg.t, channels: msg.channels, comps: new Map(msg.comps), version, opts, ms: performance.now() - t0 };
+    if (msg.damaged.length && version === circuitVersion) { refresh(); tranResult.version = circuitVersion; }
+    renderScopePanel();
+    renderInspector();
+  };
+  const w = getWorker();
+  if (w) {
+    w.onmessage = (e) => done(e.data);
+    w.onerror = () => { worker = false; done({ id, ...runTransientJob(payload, opts).message }); };
+    w.postMessage({ id, circuit: payload, opts });
+  } else {
+    setTimeout(() => done({ id, ...runTransientJob(payload, opts).message }), 20);
+  }
+}
+$("tran-run").onclick = runTransient;
+
+function fmtTime(s) { return s < 1e-3 ? `${(s * 1e6).toFixed(s < 1e-5 ? 2 : 1).replace(".", ",")} µs` : `${(s * 1e3).toFixed(s < 1e-2 ? 3 : 2).replace(".", ",")} ms`; }
+
+function renderScopePanel() {
+  const res = $("scope-results");
+  if (!tranResult) {
+    $("scope").hidden = true;
+    if ($("tran-state").classList.contains("busy")) return;
+    tranState("", "pas encore lancée");
+    res.innerHTML = "";
+    return;
+  }
+  const r = tranResult;
+  const stale = r.version !== circuitVersion;
+  tranState(stale ? "stale" : "done", stale ? "schéma modifié : relancez" : `terminée en ${(r.ms / 1000).toFixed(1).replace(".", ",")} s`);
+  const dt = r.opts.dt;
+  res.innerHTML = r.channels.map((ch, i) => {
+    const m = ch.m;
+    const head = `<h3><span class="sw" style="background:var(--ch${(i % 2) + 1})"></span>${esc(ch.name)}</h3>`;
+    if (!ch.wired) return `<div class="chan">${head}<p class="hint">Voie non branchée.</p></div>`;
+    if (!m) return `<div class="chan">${head}<p class="hint">Pas de mesure.</p></div>`;
+    const edge = (x) => (!Number.isFinite(x) ? "—" : x < 2 * dt ? `< ${fmtTime(2 * dt)} (limité par le pas)` : fmtTime(x));
+    const rows = [["Crête à crête", fmt(m.vpp, "V")], ["Min / max", `${fmt(m.min, "V")} / ${fmt(m.max, "V")}`], ["Moyenne", fmt(m.mean, "V")]];
+    if (m.n) rows.push(["Front montant 10-90 %", edge(m.rise)], ["Front descendant", edge(m.fall)]);
+    let ltc = `<div class="ltc-box none">Aucun timecode LTC reconnu sur cette voie.</div>`;
+    if (m.ltc) {
+      const f = m.ltc.frames;
+      const consecutive = f.every((x, k) => k === 0 || x.t > f[k - 1].t);
+      const parity = f.every((x) => x.evenZeros);
+      ltc = `<div class="ltc-box ok"><div class="tc">${esc(f[0].text)} → ${esc(f[f.length - 1].text)}</div>
+        ${f.length} image${f.length > 1 ? "s" : ""} décodée${f.length > 1 ? "s" : ""} · ${esc(m.ltc.label)} (${m.ltc.fps.toFixed(3).replace(".", ",")} i/s mesurées)${m.ltc.drop ? " · drop-frame" : ""}${parity && consecutive ? "" : " · <b>parité incorrecte</b>"}</div>`;
+    }
+    return `<div class="chan">${head}<table class="readings">${rows.map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join("")}</table>${ltc}</div>`;
+  }).join("") + `<p class="hint">Mesures à partir de ${fmtTime(r.opts.measureFrom)}. La dernière image simulée n'est décodée que si son front de fin est inclus.</p>`;
+  $("scope").hidden = false;
+  drawScope();
+}
+
+function scopeWindow() {
+  const r = tranResult;
+  const T = r.t[r.t.length - 1];
+  const mode = $("scope-win").value;
+  const ltc = r.channels.find((c) => c.m?.ltc)?.m.ltc;
+  const frame = ltc ? 1 / ltc.fps : T / 4;
+  const span = Math.min(T, mode === "all" ? T : mode === "frame" ? frame : mode === "bits" ? frame / 10 : frame / 160);
+  const start = (T - span) * Number($("scope-pos").value);
+  return [start, start + span];
+}
+
+function drawScope() {
+  const r = tranResult;
+  const box = $("scope-plot");
+  if (!r || $("scope").hidden) return;
+  const W = Math.max(320, box.clientWidth || 600), H = 240, L = 54, R = 10, lane = (H - 22) / 2;
+  const [a, b] = scopeWindow();
+  const t = r.t;
+  let i0 = 0; while (i0 < t.length - 1 && t[i0] < a) i0++;
+  let i1 = i0; while (i1 < t.length - 1 && t[i1] < b) i1++;
+  const x = (tt) => L + (tt - a) / (b - a) * (W - L - R);
+  let out = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Traces de l'oscilloscope">`;
+  out += `<rect class="bg" x="${L}" y="0" width="${W - L - R}" height="${H - 22}"/>`;
+  for (let k = 0; k <= 10; k++) out += `<line class="gridl" x1="${x(a + k * (b - a) / 10)}" y1="0" x2="${x(a + k * (b - a) / 10)}" y2="${H - 22}"/>`;
+  out += `<line class="gridl" x1="${L}" y1="${lane}" x2="${W - R}" y2="${lane}"/>`;
+  out += `<text class="axis" x="${L}" y="${H - 6}">${fmtTime(a)}</text><text class="axis" x="${W - R}" y="${H - 6}" text-anchor="end">${fmtTime(b)}</text>`;
+  out += `<text class="axis" x="${(L + W - R) / 2}" y="${H - 6}" text-anchor="middle">${fmtTime((b - a) / 10)} / division</text>`;
+  r.channels.filter((c) => c.wired).slice(0, 2).forEach((ch, k) => {
+    const v = ch.v;
+    let lo = Infinity, hi = -Infinity;
+    for (let i = i0; i <= i1; i++) { if (v[i] < lo) lo = v[i]; if (v[i] > hi) hi = v[i]; }
+    if (hi - lo < 1e-3) { lo -= 0.5e-3; hi += 0.5e-3; }
+    const pad = 0.1 * (hi - lo);
+    lo -= pad; hi += pad;
+    const top = k * lane;
+    const y = (vv) => top + 4 + (1 - (vv - lo) / (hi - lo)) * (lane - 8);
+    // décimation : min et max par colonne de pixel
+    const cols = Math.ceil(W - L - R);
+    const pts = [];
+    if (i1 - i0 > 2 * cols) {
+      const per = (i1 - i0) / cols;
+      for (let c = 0; c < cols; c++) {
+        let mn = Infinity, mx = -Infinity;
+        const s0 = Math.floor(i0 + c * per), s1 = Math.min(i1, Math.floor(i0 + (c + 1) * per));
+        for (let i = s0; i <= s1; i++) { if (v[i] < mn) mn = v[i]; if (v[i] > mx) mx = v[i]; }
+        pts.push(`${(L + c).toFixed(1)},${y(mn).toFixed(1)}`, `${(L + c).toFixed(1)},${y(mx).toFixed(1)}`);
+      }
+    } else {
+      for (let i = i0; i <= i1; i++) pts.push(`${x(t[i]).toFixed(1)},${y(v[i]).toFixed(1)}`);
+    }
+    out += `<polyline class="tr${k + 1}" points="${pts.join(" ")}"/>`;
+    out += `<text class="name${k + 1}" x="${L + 6}" y="${top + 14}">${esc(ch.name)}</text>`;
+    out += `<text class="axis" x="${L - 4}" y="${top + 12}" text-anchor="end">${fmt(hi - pad, "V")}</text>`;
+    out += `<text class="axis" x="${L - 4}" y="${top + lane - 4}" text-anchor="end">${fmt(lo + pad, "V")}</text>`;
+  });
+  box.innerHTML = out + `</svg>`;
+}
+$("scope-win").onchange = drawScope;
+$("scope-pos").oninput = drawScope;
+$("scope-close").onclick = () => { $("scope").hidden = true; };
+window.addEventListener("resize", () => { if (tranResult) drawScope(); });
+
+function renderScopeState() {
+  if (!tranResult || $("tran-state").classList.contains("busy")) return;
+  const stale = tranResult.version !== circuitVersion;
+  if (stale) tranState("stale", "schéma modifié : relancez");
+}

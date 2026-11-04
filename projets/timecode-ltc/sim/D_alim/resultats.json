@@ -1,0 +1,233 @@
+{
+ "cases": [
+  {
+   "name": "D1_4V2",
+   "vocv": 4.2,
+   "vbus": null,
+   "rint": 0.12,
+   "rdo": 0.3,
+   "v3v3_min_peak500": 3.268736,
+   "v3v3_min_bursts": 3.2778182,
+   "v3v3_typ": 3.2941035,
+   "v3v3a_min": 3.2624643,
+   "vsys_min": 4.0783173,
+   "vbat_min": 4.1085142,
+   "inrush_v3v3_t90_ms": 0.05019118000000004,
+   "ok": true
+  },
+  {
+   "name": "D2_3V7",
+   "vocv": 3.7,
+   "vbus": null,
+   "rint": 0.12,
+   "rdo": 0.3,
+   "v3v3_min_peak500": 3.268736,
+   "v3v3_min_bursts": 3.2778182,
+   "v3v3_typ": 3.2941035,
+   "v3v3a_min": 3.2624643,
+   "vsys_min": 3.5783176,
+   "vbat_min": 3.6085145,
+   "inrush_v3v3_t90_ms": 0.05019118000000004,
+   "ok": true
+  },
+  {
+   "name": "D3_3V55",
+   "vocv": 3.55,
+   "vbus": null,
+   "rint": 0.12,
+   "rdo": 0.3,
+   "v3v3_min_peak500": 3.268736,
+   "v3v3_min_bursts": 3.2778182,
+   "v3v3_typ": 3.2941035,
+   "v3v3a_min": 3.2624643,
+   "vsys_min": 3.4282155,
+   "vbat_min": 3.4585146,
+   "inrush_v3v3_t90_ms": 0.052191179999999976,
+   "ok": true
+  },
+  {
+   "name": "D4_3V45",
+   "vocv": 3.45,
+   "vbus": null,
+   "rint": 0.12,
+   "rdo": 0.3,
+   "v3v3_min_peak500": 3.1754808,
+   "v3v3_min_bursts": 3.2526105,
+   "v3v3_typ": 3.2941035,
+   "v3v3a_min": 3.175404,
+   "vsys_min": 3.3267213,
+   "vbat_min": 3.358539,
+   "inrush_v3v3_t90_ms": 0.05419118000000002,
+   "ok": true
+  },
+  {
+   "name": "D5_3V4",
+   "vocv": 3.4,
+   "vbus": null,
+   "rint": 0.12,
+   "rdo": 0.3,
+   "v3v3_min_peak500": 3.1246942,
+   "v3v3_min_bursts": 3.2020826,
+   "v3v3_typ": 3.2941035,
+   "v3v3a_min": 3.1246187,
+   "vsys_min": 3.2759149,
+   "vbat_min": 3.3085516,
+   "inrush_v3v3_t90_ms": 0.05419118000000002,
+   "ok": true
+  },
+  {
+   "name": "D5b_3V3",
+   "vocv": 3.3,
+   "vbus": null,
+   "rint": 0.12,
+   "rdo": 0.3,
+   "v3v3_min_peak500": 3.0229847,
+   "v3v3_min_bursts": 3.1009373,
+   "v3v3_typ": 3.2435752,
+   "v3v3a_min": 3.0229116,
+   "vsys_min": 3.1741655,
+   "vbat_min": 3.208577,
+   "inrush_v3v3_t90_ms": 0.05819118000000001,
+   "ok": true
+  },
+  {
+   "name": "D5c_3V2",
+   "vocv": 3.2,
+   "vbus": null,
+   "rint": 0.12,
+   "rdo": 0.3,
+   "v3v3_min_peak500": 2.9210658,
+   "v3v3_min_bursts": 2.9996545,
+   "v3v3_typ": 3.1433031,
+   "v3v3a_min": 2.9209952,
+   "vsys_min": 3.0722068,
+   "vbat_min": 3.1086025,
+   "inrush_v3v3_t90_ms": 0.06619117999999999,
+   "ok": false
+  },
+  {
+   "name": "D6_3V6_rdomax",
+   "vocv": 3.6,
+   "vbus": null,
+   "rint": 0.12,
+   "rdo": 0.425,
+   "v3v3_min_peak500": 3.2640144,
+   "v3v3_min_bursts": 3.2778182,
+   "v3v3_typ": 3.2941035,
+   "v3v3a_min": 3.2624643,
+   "vsys_min": 3.4783209,
+   "vbat_min": 3.508517,
+   "inrush_v3v3_t90_ms": 0.052191179999999976,
+   "ok": true
+  },
+  {
+   "name": "D7_3V5_rdomax",
+   "vocv": 3.5,
+   "vbus": null,
+   "rint": 0.12,
+   "rdo": 0.425,
+   "v3v3_min_peak500": 3.1632572,
+   "v3v3_min_bursts": 3.2582378,
+   "v3v3_typ": 3.2941035,
+   "v3v3a_min": 3.1631807,
+   "vsys_min": 3.3775078,
+   "vbat_min": 3.408542,
+   "inrush_v3v3_t90_ms": 0.05419118000000002,
+   "ok": true
+  },
+  {
+   "name": "D7b_3V4_rdomax",
+   "vocv": 3.4,
+   "vbus": null,
+   "rint": 0.12,
+   "rdo": 0.425,
+   "v3v3_min_peak500": 3.0617417,
+   "v3v3_min_bursts": 3.157226,
+   "v3v3_typ": 3.2941035,
+   "v3v3a_min": 3.0616677,
+   "vsys_min": 3.2759361,
+   "vbat_min": 3.3085672,
+   "inrush_v3v3_t90_ms": 0.05819118000000001,
+   "ok": true
+  },
+  {
+   "name": "D7c_3V3_rdomax",
+   "vocv": 3.3,
+   "vbus": null,
+   "rint": 0.12,
+   "rdo": 0.425,
+   "v3v3_min_peak500": 2.9600491,
+   "v3v3_min_bursts": 3.0560975,
+   "v3v3_typ": 3.2311825,
+   "v3v3a_min": 2.9599775,
+   "vsys_min": 3.1741871,
+   "vbat_min": 3.2085925,
+   "inrush_v3v3_t90_ms": 0.06219118,
+   "ok": false
+  },
+  {
+   "name": "D8_USB_5V",
+   "vocv": 3.7,
+   "vbus": 5.0,
+   "rint": 0.12,
+   "rdo": 0.3,
+   "v3v3_min_peak500": 3.268736,
+   "v3v3_min_bursts": 3.2778182,
+   "v3v3_typ": 3.2941035,
+   "v3v3a_min": 3.2624643,
+   "vsys_min": 4.5261664,
+   "vbat_min": 3.6999974,
+   "inrush_v3v3_t90_ms": 0.05019118000000004,
+   "i_usb_mA": 105.97229235197122,
+   "ok": true
+  },
+  {
+   "name": "D9_USB_4V75",
+   "vocv": 3.0,
+   "vbus": 4.75,
+   "rint": 0.12,
+   "rdo": 0.3,
+   "v3v3_min_peak500": 3.268736,
+   "v3v3_min_bursts": 3.2778182,
+   "v3v3_typ": 3.2941035,
+   "v3v3a_min": 3.2624643,
+   "vsys_min": 4.2761673,
+   "vbat_min": 2.9999977,
+   "inrush_v3v3_t90_ms": 0.05019118000000004,
+   "i_usb_mA": 105.96829234547542,
+   "ok": true
+  }
+ ],
+ "coupure_fem_typ": 3.3,
+ "coupure_fem_pire": 3.4,
+ "capacite_perdue_sous_coupure_pct": {
+  "typ": 2.0,
+  "pire": 4.0
+ },
+ "autonomie": {
+  "TX (émet un paquet par image, écoute le reste du temps)": {
+   "i_moy_mA": 105.825,
+   "heures_typ": 18.521143397117882,
+   "heures_cellule_80pct": 14.514528703047485
+  },
+  "RX (écoute permanente, génère le LTC)": {
+   "i_moy_mA": 99.585,
+   "heures_typ": 19.68167896771602,
+   "heures_cellule_80pct": 15.424009640006028
+  },
+  "RX avec fenêtre d'écoute ESP-NOW 10 % (option logicielle, non simulée)": {
+   "i_moy_mA": 49.82500000000001,
+   "heures_typ": 39.33768188660311,
+   "heures_cellule_80pct": 30.827897641746112
+  }
+ },
+ "charge": {
+  "i_charge_mA": 400,
+  "duree_h_estimee": 6.0,
+  "i_usb_total_mA": 505.9722923519712
+ },
+ "dw01a_seuil_surintensite_A": {
+  "min": 2.592592592592593,
+  "typ": 3.555555555555556
+ }
+}

@@ -1,0 +1,92 @@
+
+Note: No compatibility mode selected!
+
+
+Circuit: * b9
+
+Reducing trtol to 1 for xspice 'A' devices
+Doing analysis at TEMP = 27.000000 and TNOM = 27.000000
+
+
+Initial Transient Solution
+--------------------------
+
+Node                                   Voltage
+----                                   -------
+bnc_c                                        0
+xd1.m                                        0
+ltc_in_raw                                   0
+mode_tx                                      0
+ltc_out_bnc                                  0
+mode_rx                                      1
+ltc_tx_gpio                               1.65
+out_sh                                    1.65
+v3v3a                                      3.3
+opa_out                                   1.65
+xu4.mid                                   1.65
+xu4.nint                                  1.65
+xu4.x                                     1.65
+out_p                                     1.65
+out_ac                                       0
+b2_bnc_c                                     0
+xb2_d1.m                                     0
+b2_ltc_in_raw                                0
+b2_ltc_out_bnc                               0
+b2_in_ac                                 1.727
+b2_in_a                                  1.727
+b2_vmid                                  1.727
+b2_cmp_inn                               1.727
+b2_cmp_inp                             1.75977
+b2_cmp_out                             3.29982
+xb2_u3.n1                                  3.3
+xb2_u3.n2                                  3.3
+xb2_u3.n3                                  3.3
+b2_ltc_rx_gpio                         3.29981
+v3v3                                       3.3
+ctl                                          0
+oe                                           0
+b.xb2_u3.bout#branch               -3.3267e-06
+b.xb2_u3.bcore#branch                        0
+b.xu4.bx#branch                              0
+b.xu4.bmid#branch                 -2.34506e-20
+voe#branch                                   0
+vmrx#branch                                  0
+vmtx#branch                                  0
+vd#branch                         -1.95209e-16
+va#branch                         -0.000666668
+actl#branch_0_0                              0
+
+ Reference value :  8.79577e-03
+ Reference value :  1.87611e-02
+ Reference value :  2.80828e-02
+ Reference value :  3.55037e-02
+ Reference value :  4.25984e-02
+ Reference value :  5.02528e-02
+ Reference value :  5.80122e-02
+ Reference value :  6.58687e-02
+ Reference value :  7.33273e-02
+ Reference value :  8.10635e-02
+ Reference value :  8.91295e-02
+ Reference value :  9.67432e-02
+ Reference value :  1.04755e-01
+ Reference value :  1.12668e-01
+ Reference value :  1.20250e-01
+ Reference value :  1.27201e-01
+ Reference value :  1.34634e-01
+ Reference value :  1.41348e-01
+ Reference value :  1.48782e-01
+ Reference value :  1.56713e-01
+ Reference value :  1.64409e-01
+ Reference value :  1.74173e-01
+ Reference value :  1.83328e-01
+ Reference value :  1.93298e-01
+ Reference value :  2.03106e-01
+ Reference value :  2.13168e-01
+ Reference value :  2.22501e-01
+ Reference value :  2.29273e-01
+ Reference value :  2.37718e-01
+No. of Data Rows : 502248
+ngspice-42 done
+Using SPARSE 1.3 as Direct Linear Solver
+Note: Starting dynamic gmin stepping
+Note: Dynamic gmin stepping completed

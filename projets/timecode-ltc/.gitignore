@@ -1,0 +1,5 @@
+*.pwl
+*.dat
+__pycache__/
+sim/D_alim/alim_rdo*.inc
+kicad/*-backups/

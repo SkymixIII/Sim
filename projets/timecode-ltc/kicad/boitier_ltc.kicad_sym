@@ -1,0 +1,200 @@
+(kicad_symbol_lib
+  (version 20220914)
+  (generator boitier_ltc_gen)
+  (symbol "TP4056"
+    (in_bom yes)
+    (on_board yes)
+    (property "Reference" "U" (at 0 7.62 0) (effects (font (size 1.27 1.27))))
+    (property "Value" "TP4056" (at 0 -7.62 0) (effects (font (size 1.27 1.27))))
+    (property "Footprint" "" (at 0 0 0) (effects (font (size 1.27 1.27)) hide))
+    (property "Datasheet" "" (at 0 0 0) (effects (font (size 1.27 1.27)) hide))
+    (symbol "TP4056_0_1"
+      (rectangle
+        (start -6.35 6.35)
+        (end 6.35 -6.35)
+        (stroke (width 0.254) (type default))
+        (fill (type background))))
+    (symbol "TP4056_1_1"
+      (pin power_in line
+        (at -8.89 3.81 0)
+        (length 2.54)
+        (name "VCC" (effects (font (size 1.27 1.27))))
+        (number "4" (effects (font (size 1.27 1.27)))))
+      (pin input line
+        (at -8.89 1.27 0)
+        (length 2.54)
+        (name "CE" (effects (font (size 1.27 1.27))))
+        (number "8" (effects (font (size 1.27 1.27)))))
+      (pin input line
+        (at -8.89 -1.27 0)
+        (length 2.54)
+        (name "TEMP" (effects (font (size 1.27 1.27))))
+        (number "1" (effects (font (size 1.27 1.27)))))
+      (pin passive line
+        (at -8.89 -3.81 0)
+        (length 2.54)
+        (name "PROG" (effects (font (size 1.27 1.27))))
+        (number "2" (effects (font (size 1.27 1.27)))))
+      (pin power_out line
+        (at 8.89 3.81 180)
+        (length 2.54)
+        (name "BAT" (effects (font (size 1.27 1.27))))
+        (number "5" (effects (font (size 1.27 1.27)))))
+      (pin open_collector line
+        (at 8.89 1.27 180)
+        (length 2.54)
+        (name "~{CHRG}" (effects (font (size 1.27 1.27))))
+        (number "7" (effects (font (size 1.27 1.27)))))
+      (pin open_collector line
+        (at 8.89 -1.27 180)
+        (length 2.54)
+        (name "~{STDBY}" (effects (font (size 1.27 1.27))))
+        (number "6" (effects (font (size 1.27 1.27)))))
+      (pin power_in line
+        (at -1.27 -8.89 90)
+        (length 2.54)
+        (name "GND" (effects (font (size 1.27 1.27))))
+        (number "3" (effects (font (size 1.27 1.27)))))
+      (pin passive line
+        (at 1.27 -8.89 90)
+        (length 2.54)
+        (name "EP" (effects (font (size 1.27 1.27))))
+        (number "9" (effects (font (size 1.27 1.27)))))))
+  (symbol "DW01A"
+    (in_bom yes)
+    (on_board yes)
+    (property "Reference" "U" (at 0 6.35 0) (effects (font (size 1.27 1.27))))
+    (property "Value" "DW01A" (at 0 -6.35 0) (effects (font (size 1.27 1.27))))
+    (property "Footprint" "" (at 0 0 0) (effects (font (size 1.27 1.27)) hide))
+    (property "Datasheet" "" (at 0 0 0) (effects (font (size 1.27 1.27)) hide))
+    (symbol "DW01A_0_1"
+      (rectangle
+        (start -5.08 5.08)
+        (end 5.08 -5.08)
+        (stroke (width 0.254) (type default))
+        (fill (type background))))
+    (symbol "DW01A_1_1"
+      (pin power_in line
+        (at -7.62 2.54 0)
+        (length 2.54)
+        (name "VCC" (effects (font (size 1.27 1.27))))
+        (number "5" (effects (font (size 1.27 1.27)))))
+      (pin input line
+        (at -7.62 0 0)
+        (length 2.54)
+        (name "CS" (effects (font (size 1.27 1.27))))
+        (number "2" (effects (font (size 1.27 1.27)))))
+      (pin no_connect line
+        (at -7.62 -2.54 0)
+        (length 2.54)
+        (name "NC" (effects (font (size 1.27 1.27))))
+        (number "4" (effects (font (size 1.27 1.27)))))
+      (pin output line
+        (at 7.62 2.54 180)
+        (length 2.54)
+        (name "OD" (effects (font (size 1.27 1.27))))
+        (number "1" (effects (font (size 1.27 1.27)))))
+      (pin output line
+        (at 7.62 0 180)
+        (length 2.54)
+        (name "OC" (effects (font (size 1.27 1.27))))
+        (number "3" (effects (font (size 1.27 1.27)))))
+      (pin power_in line
+        (at 0 -7.62 90)
+        (length 2.54)
+        (name "GND" (effects (font (size 1.27 1.27))))
+        (number "6" (effects (font (size 1.27 1.27)))))))
+  (symbol "FS8205A"
+    (in_bom yes)
+    (on_board yes)
+    (property "Reference" "Q" (at 0 5.08 0) (effects (font (size 1.27 1.27))))
+    (property "Value" "FS8205A" (at 0 -5.08 0) (effects (font (size 1.27 1.27))))
+    (property "Footprint" "" (at 0 0 0) (effects (font (size 1.27 1.27)) hide))
+    (property "Datasheet" "" (at 0 0 0) (effects (font (size 1.27 1.27)) hide))
+    (symbol "FS8205A_0_1"
+      (rectangle
+        (start -5.08 3.81)
+        (end 5.08 -3.81)
+        (stroke (width 0.254) (type default))
+        (fill (type background))))
+    (symbol "FS8205A_1_1"
+      (pin passive line
+        (at -7.62 1.27 0)
+        (length 2.54)
+        (name "S1" (effects (font (size 1.27 1.27))))
+        (number "1" (effects (font (size 1.27 1.27)))))
+      (pin input line
+        (at -7.62 -1.27 0)
+        (length 2.54)
+        (name "G1" (effects (font (size 1.27 1.27))))
+        (number "6" (effects (font (size 1.27 1.27)))))
+      (pin passive line
+        (at 7.62 1.27 180)
+        (length 2.54)
+        (name "S2" (effects (font (size 1.27 1.27))))
+        (number "3" (effects (font (size 1.27 1.27)))))
+      (pin input line
+        (at 7.62 -1.27 180)
+        (length 2.54)
+        (name "G2" (effects (font (size 1.27 1.27))))
+        (number "4" (effects (font (size 1.27 1.27)))))
+      (pin passive line
+        (at -1.27 6.35 270)
+        (length 2.54)
+        (name "D" (effects (font (size 1.27 1.27))))
+        (number "2" (effects (font (size 1.27 1.27)))))
+      (pin passive line
+        (at 1.27 6.35 270)
+        (length 2.54)
+        (name "D" (effects (font (size 1.27 1.27))))
+        (number "5" (effects (font (size 1.27 1.27)))))))
+  (symbol "TLV3201"
+    (pin_names (offset 0.127))
+    (in_bom yes)
+    (on_board yes)
+    (property "Reference" "U" (at -1.27 6.35 0) (effects (font (size 1.27 1.27)) (justify left)))
+    (property "Value" "TLV3201" (at -1.27 3.81 0) (effects (font (size 1.27 1.27)) (justify left)))
+    (property "Footprint" "Package_TO_SOT_SMD:SOT-23-5"
+      (at -15.24 -19.05 0)
+      (effects (font (size 1.27 1.27)) (justify left) hide))
+    (property "Datasheet" "https://www.ti.com/lit/ds/symlink/tlv3201.pdf"
+      (at 0 20.32 0)
+      (effects (font (size 1.27 1.27)) hide))
+    (property "ki_keywords" "single opamp rail to rail input output"
+      (at 0 0 0)
+      (effects (font (size 1.27 1.27)) hide))
+    (property "ki_description" "Comparateur 40 ns, push-pull, SOT-23-5"
+      (at 0 0 0)
+      (effects (font (size 1.27 1.27)) hide))
+    (property "ki_fp_filters" "SOT?23*" (at 0 0 0) (effects (font (size 1.27 1.27)) hide))
+    (symbol "TLV3201_0_1"
+      (polyline
+        (pts (xy -5.08 5.08) (xy 5.08 0) (xy -5.08 -5.08) (xy -5.08 5.08))
+        (stroke (width 0.254) (type default))
+        (fill (type background)))
+      (pin power_in line
+        (at -2.54 -7.62 90)
+        (length 3.81)
+        (name "V-" (effects (font (size 1.27 1.27))))
+        (number "2" (effects (font (size 1.27 1.27)))))
+      (pin power_in line
+        (at -2.54 7.62 270)
+        (length 3.81)
+        (name "V+" (effects (font (size 1.27 1.27))))
+        (number "5" (effects (font (size 1.27 1.27))))))
+    (symbol "TLV3201_1_1"
+      (pin output line
+        (at 7.62 0 180)
+        (length 2.54)
+        (name "~" (effects (font (size 1.27 1.27))))
+        (number "1" (effects (font (size 1.27 1.27)))))
+      (pin input line
+        (at -7.62 2.54 0)
+        (length 2.54)
+        (name "+" (effects (font (size 1.27 1.27))))
+        (number "3" (effects (font (size 1.27 1.27)))))
+      (pin input line
+        (at -7.62 -2.54 0)
+        (length 2.54)
+        (name "-" (effects (font (size 1.27 1.27))))
+        (number "4" (effects (font (size 1.27 1.27))))))))

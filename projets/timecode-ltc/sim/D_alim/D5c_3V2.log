@@ -1,0 +1,56 @@
+
+Note: No compatibility mode selected!
+
+
+Circuit: * d5c_3v2
+
+Doing analysis at TEMP = 27.000000 and TNOM = 27.000000
+
+
+Initial Transient Solution
+--------------------------
+
+Node                                   Voltage
+----                                   -------
+cc1                                          0
+cc2                                          0
+vbus                                    0.3125
+vbus_f                                  0.3125
+prog                                         0
+vbat                                   3.19999
+chrg_a                                  0.3125
+stdby_a                                 0.3125
+dw_vcc                                 3.19999
+bat_n                             -1.86364e-06
+dw_cs                                        0
+fs_d                              -9.31818e-07
+vsys                                   3.19999
+c23_esr                                      0
+ldo_en                             3.19999e-06
+xu1.en_ok                                    0
+xu1.e1                                       0
+v3v3                                         0
+xu1.e2                                       0
+c24_esr                                      0
+c25_esr                                      0
+fb1_m                                        0
+v3v3a                                        0
+vbat_sense                                 1.6
+vbus_sense                             0.15625
+xbat.a                                     3.2
+xbat.b                                 3.19999
+vcell                                  3.19999
+en_ctl                                       0
+prof                                         0
+b.xu1.berr#branch                            0
+b.xu1.ben#branch                             0
+lfb1#branch                                  0
+vprof#branch                                 0
+ven#branch                                   0
+v.xbat.vb#branch                  -3.72727e-05
+
+ Reference value :  5.61550e-02
+ Reference value :  1.11141e-01
+No. of Data Rows : 65077
+ngspice-42 done
+Using SPARSE 1.3 as Direct Linear Solver
