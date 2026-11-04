@@ -1,0 +1,32 @@
+* A1
+.include ../models/composants.lib
+
+.include /home/claude/sim/projets/timecode-ltc/sim/gen/bnc.inc
+.include entree_vos+1mV.inc
+* Alimentation analogique idéale (l'alimentation réelle est vérifiée en D)
+Va v3v3a 0 3.3
+Vmtx mode_tx 0 1
+Vmrx mode_rx 0 0
+* Source LTC : f.é.m. PWL + bruit + ronflement, impédance de sortie Rs
+Asig %vd([n_src n_src2]) srcmod
+.model srcmod filesource (file="a1_src.pwl" amploffset=[0] amplscale=[1] timeoffset=0 timescale=1 timerelative=false amplstep=false)
+Vnoise n_src2 n_src3 0
+Vhum n_src3 0 0
+Rsrc n_src bnc_c 50
+* Câble 10 m RG-59 ramené à sa capacité (67 pF/m) : négligeable à 2,4 kHz
+Ccable bnc_c 0 670p
+* Chemin de sortie, inactif en TX : terminaison de décharge seule
+Rout_idle ltc_out_bnc 0 100k
+* Broche ESP32 (entrée)
+Vd v3v3 0 3.3
+XESP ltc_rx_gpio v3v3 0 ESP_GPIO_IN
+
+.control
+set wr_singlescale
+set wr_vecnames
+option numdgt=7
+tran 0.5u 0.243 0 0.5u
+wrdata A1.dat v(bnc_c) v(in_a) v(cmp_inn) v(cmp_inp) v(ltc_rx_gpio) i(va) v(in_ac)
+quit
+.endc
+.end

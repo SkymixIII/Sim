@@ -1,0 +1,22 @@
+* A0_ac
+.include ../models/composants.lib
+
+.include /home/claude/sim/projets/timecode-ltc/sim/gen/bnc_tx.inc
+.include /home/claude/sim/projets/timecode-ltc/sim/gen/entree.inc
+Va v3v3a 0 3.3
+Vac bnc_c 0 dc 0 ac 1
+Rout_idle ltc_out_bnc 0 100k
+* comparateur forcé en saturation (sortie basse) : seule la chaîne passive est linéarisée
+Rforce cmp_inp 0 1
+
+.control
+set wr_singlescale
+set wr_vecnames
+option numdgt=7
+ac dec 50 1 10meg
+let gi = mag(v(cmp_inn))
+let zi = 1/mag(i(vac))
+wrdata A0_ac.dat gi zi
+quit
+.endc
+.end

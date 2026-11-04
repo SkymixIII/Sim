@@ -1,0 +1,27 @@
+{
+ "hypotheses": {
+  "L0_true_ms": 1.2,
+  "L0_cal_ms": 1.1,
+  "jitter_mean_ms": 0.4,
+  "p_long": 0.05,
+  "long_max_ms": 4.0,
+  "p_loss": 0.1,
+  "outage_s": [
+   100.0,
+   130.0
+  ],
+  "eps_rx_ppm": 18.0,
+  "drift_ppm": 1.0,
+  "f_lim_ppm": 200.0
+ },
+ "acquisition_err_us": 128.27769100154373,
+ "verrouille_moy_us": 117.14417711013223,
+ "verrouille_ecart_type_us": 13.443231868590255,
+ "verrouille_max_abs_us": 163.87705020548538,
+ "coupure_max_abs_us": 200.3293967618447,
+ "apres_max_abs_us": 159.5369687947823,
+ "periode_min_ms": 39.99124016638689,
+ "periode_max_ms": 40.009278925921876,
+ "sauts_image": 0,
+ "temps_verrouillage_s": 1.04
+}

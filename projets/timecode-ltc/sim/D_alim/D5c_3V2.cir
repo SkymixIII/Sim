@@ -1,0 +1,29 @@
+* D5c_3V2
+.include ../models/composants.lib
+
+.include /home/claude/sim/projets/timecode-ltc/sim/gen/alim.inc
+.param rdo_ldo=0.3
+XBAT vcell bat_n LIPO VOCV=3.2 RINT=0.12
+Rcell vcell vbat 0.01
+Rbus vbus 0 1Meg
+* Interrupteur marche (SW1 position MARCHE) fermé à t = 0,5 ms
+Sw1 vsys ldo_en en_ctl 0 SWCONT
+Ven en_ctl 0 pwl(0 0 0.5m 0 0.51m 1)
+* Charge ESP32-S3 sur +3V3, circuits analogiques sur +3V3A
+* Le profil (en volts = ampères) pilote une source de courant qui s'efface sous
+* 2,8 V (un ESP32 non démarré ne consomme pas son courant nominal) : évite une
+* source de courant idéale qui tirerait le rail vers des tensions négatives.
+Vprof prof 0 pwl(0 0 0.001 0 0.00105 0.095 0.005 0.095 0.00501 0.5 0.007 0.5 0.00701 0.095 0.01 0.095 0.01001 0.355 0.011 0.355 0.01101 0.095 0.05 0.095 0.05001 0.355 0.051 0.355 0.05101 0.095 0.09 0.095 0.09001 0.355 0.091 0.355 0.09101 0.095 0.13 0.095)
+Besp v3v3 0 I = V(prof) * min(1, max(V(v3v3), 0) / 2.8)
+Rmisc v3v3 0 942.9
+Rana v3v3a 0 4125.0
+
+.control
+set wr_singlescale
+set wr_vecnames
+option numdgt=7
+tran 2u 130m 0 2u
+wrdata D5c_3V2.dat v(v3v3) v(v3v3a) v(vsys) v(vbat) v(vbus) v(bat_n)
+quit
+.endc
+.end

@@ -1,0 +1,49 @@
+
+Note: No compatibility mode selected!
+
+
+Circuit: * a9_defauts
+
+Doing analysis at TEMP = 27.000000 and TNOM = 27.000000
+
+
+Initial Transient Solution
+--------------------------
+
+Node                                   Voltage
+----                                   -------
+bnc_c                                        0
+xd1.m                              1.57685e-18
+ltc_in_raw                                   0
+mode_tx                                      1
+ltc_out_bnc                                  0
+mode_rx                                      0
+in_ac                                    1.573
+in_a                                     1.573
+v3v3a                                      3.3
+vmid                                     1.573
+cmp_inn                                  1.573
+cmp_inp                                1.54023
+cmp_out                            0.000180219
+xu3.n1                                       0
+xu3.n2                                       0
+xu3.n3                                       0
+ltc_rx_gpio                        0.000180219
+f1                                           0
+f2                                           0
+f3                                           0
+fsum                                         0
+bsum#branch                                  0
+b.xu3.bout#branch                   3.2767e-06
+b.xu3.bcore#branch                           0
+vf3#branch                                   0
+vf2#branch                                   0
+vf1#branch                                   0
+vmrx#branch                                  0
+vmtx#branch                                  0
+va#branch                         -7.68447e-05
+
+ Reference value :  6.27217e-02
+No. of Data Rows : 40176
+ngspice-42 done
+Using SPARSE 1.3 as Direct Linear Solver

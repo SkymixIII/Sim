@@ -1,0 +1,23 @@
+* C3_tx
+.include ../models/composants.lib
+
+.include /home/claude/sim/projets/timecode-ltc/sim/gen/bnc_tx.inc
+.include /home/claude/sim/projets/timecode-ltc/sim/gen/entree.inc
+.include /home/claude/sim/projets/timecode-ltc/sim/gen/sortie.inc
+Va v3v3a 0 3.3
+* 1 V AC injecté à la sortie de l'AOP (via sa source de commande)
+Vinj ltc_tx_gpio 0 dc 1.65 ac 1
+Rbnc bnc_c 0 50
+Rforce cmp_inp 0 1
+
+.control
+set wr_singlescale
+set wr_vecnames
+option numdgt=7
+ac dec 20 10 10meg
+let g_in = mag(v(cmp_inn))
+let g_bnc = mag(v(bnc_c))
+wrdata C3_tx.dat g_in g_bnc
+quit
+.endc
+.end

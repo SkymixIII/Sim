@@ -1,0 +1,29 @@
+* C5
+.include ../models/composants.lib
+
+.include /home/claude/sim/projets/timecode-ltc/sim/gen/bnc.inc
+.include /home/claude/sim/projets/timecode-ltc/sim/gen/entree.inc
+.include /home/claude/sim/projets/timecode-ltc/sim/gen/sortie.inc
+
+Va v3v3a 0 3.3
+Vd v3v3 0 3.3
+XESP ltc_rx_gpio v3v3 0 ESP_GPIO_IN
+
+* RX jusqu'à 60 ms, contacts tous ouverts 2 ms, puis TX
+Vmrx mode_rx 0 pwl(0 1 60m 1 60.1m 0)
+Vmtx mode_tx 0 pwl(0 0 62m 0 62.1m 1)
+Actl %vd([ctl 0]) mctl
+.model mctl filesource (file="c5_gpio.pwl" amploffset=[0] amplscale=[1] timeoffset=0 timescale=1 timerelative=false amplstep=false)
+Voe oe 0 1
+XG ltc_tx_gpio v3v3 0 ctl oe ESP_GPIO_OUT
+Rload bnc_c 0 10k
+
+.control
+set wr_singlescale
+set wr_vecnames
+option numdgt=7
+tran 1u 0.164 0 1u
+wrdata C5.dat v(bnc_c) v(ltc_out_bnc) v(cmp_inn) v(ltc_rx_gpio) v(ltc_in_raw)
+quit
+.endc
+.end

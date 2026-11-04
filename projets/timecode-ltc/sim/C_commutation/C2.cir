@@ -1,0 +1,28 @@
+* C2
+.include ../models/composants.lib
+
+.include /home/claude/sim/projets/timecode-ltc/sim/gen/bnc.inc
+.include /home/claude/sim/projets/timecode-ltc/sim/gen/entree.inc
+.include /home/claude/sim/projets/timecode-ltc/sim/gen/sortie.inc
+
+Va v3v3a 0 3.3
+Vd v3v3 0 3.3
+XESP ltc_rx_gpio v3v3 0 ESP_GPIO_IN
+
+Vmtx mode_tx 0 0
+Vmrx mode_rx 0 1
+Actl %vd([ctl 0]) mctl
+.model mctl filesource (file="c2_gpio.pwl" amploffset=[0] amplscale=[1] timeoffset=0 timescale=1 timerelative=false amplstep=false)
+Voe oe 0 pwl(0 0 0.0018 0 0.0018009999999999999 1)
+XG ltc_tx_gpio v3v3 0 ctl oe ESP_GPIO_OUT
+Rload bnc_c 0 10k
+
+.control
+set wr_singlescale
+set wr_vecnames
+option numdgt=7
+tran 0.5u 0.244 0 0.5u
+wrdata C2.dat v(bnc_c) v(ltc_in_raw) v(cmp_inn) v(cmp_inp) v(ltc_rx_gpio)
+quit
+.endc
+.end

@@ -1,0 +1,4 @@
+(sym_lib_table
+  (version 7)
+  (lib (name "boitier_ltc")(type "KiCad")(uri "${KIPRJMOD}/boitier_ltc.kicad_sym")(options "")(descr "Symboles du boîtier LTC"))
+)
