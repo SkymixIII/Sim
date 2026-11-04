@@ -355,7 +355,7 @@ svg.addEventListener("pointerdown", (e) => {
     const comp = circuit.components.find((c) => c.id === compEl.dataset.comp);
     selection = { kind: "comp", id: comp.id };
     if (REGISTRY[comp.type].programmable) { codeBoardId = comp.id; renderCodePanel(); }
-    drag = { comp, start: p, origin: { x: comp.x, y: comp.y }, moved: false };
+    drag = { comp, start: p, origin: { x: comp.x, y: comp.y }, moved: false, t0: performance.now() };
     svg.setPointerCapture(e.pointerId);
     const def = REGISTRY[comp.type];
     if (def.interactive && def.press(comp, true)) refresh();
@@ -384,11 +384,19 @@ svg.addEventListener("pointermove", (e) => {
   showTip(e, p);
 });
 
+// Un clic de souris ou un tap dure parfois moins de 50 ms : moins que l'anti-rebond d'un sketch
+// qui lit le bouton toutes les quelques millisecondes dans le simulateur. On garde donc le bouton
+// enfoncé au moins MIN_PRESS_MS, comme un doigt sur un vrai bouton.
+const MIN_PRESS_MS = 250;
 svg.addEventListener("pointerup", () => {
   if (!drag) return;
-  const { comp, moved } = drag;
+  const { comp, moved, t0 } = drag;
   drag = null;
   const def = REGISTRY[comp.type];
+  if (def.interactive && !moved && comp.rt?.pressed) {
+    setTimeout(() => { if (def.press(comp, false)) refresh(); }, Math.max(0, MIN_PRESS_MS - (performance.now() - t0)));
+    return;
+  }
   const pressed = def.interactive && def.press(comp, false);
   if (moved || pressed) refresh();
 });
