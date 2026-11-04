@@ -222,6 +222,26 @@ button:focus-visible, .tab:focus-visible, textarea:focus-visible, input:focus-vi
 
 .zoom { display: inline-flex; gap: 2px; }
 .zoom #zoom-fit { min-width: 64px; font-variant-numeric: tabular-nums; }
+/* Carte radio */
+.radio-map { width: 100%; height: auto; display: block; touch-action: none; user-select: none; -webkit-user-select: none; }
+.radio-map .radio-bg { fill: var(--bg); stroke: var(--line); }
+.radio-map .radio-grid { stroke: var(--grid); stroke-width: 0.5; opacity: 0.5; }
+.radio-map .radio-grid.major { opacity: 1; }
+.radio-map .radio-scale { font: 500 9px var(--font-mono); fill: var(--muted); }
+.radio-map .radio-range { fill: var(--link-radio); fill-opacity: 0.08; stroke: var(--link-radio); stroke-dasharray: 4 3; }
+.radio-map .radio-link { stroke-width: 2; stroke-linecap: round; }
+.radio-map .radio-link.obst { stroke-dasharray: 5 3; }
+.radio-map .radio-link.sel { stroke: var(--sel) !important; stroke-width: 3.5; opacity: 1 !important; }
+.radio-map .radio-hit { stroke: transparent; stroke-width: 12; cursor: pointer; }
+.radio-map .radio-path { stroke: var(--link-radio); stroke-width: 2.2; }
+.radio-map .radio-arrowhead { fill: var(--link-radio); }
+.radio-map .radio-node { cursor: grab; }
+.radio-map .radio-node circle { fill: var(--panel); stroke: var(--ink); stroke-width: 1.6; }
+.radio-map .radio-node circle.tx { stroke: var(--link-rj45); stroke-width: 3; }
+.radio-map .radio-node.sel circle { stroke: var(--sel); stroke-width: 3; }
+.radio-map .radio-node.off circle { opacity: 0.4; }
+.radio-map .radio-node text { font: 600 10px var(--font-mono); fill: var(--ink); text-anchor: middle; stroke: var(--bg); stroke-width: 3; paint-order: stroke; }
+#radio-inspect { display: grid; gap: 10px; }
 .code-board-row { display: flex; gap: 8px; align-items: center; }
 .code-board-row select, .add-link select, .tools select.montage {
   font: 500 13px var(--font-ui); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 5px; padding: 6px 8px; min-width: 0;

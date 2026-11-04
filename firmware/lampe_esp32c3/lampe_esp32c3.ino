@@ -1,9 +1,14 @@
 // ============================================================================
-//  Lampe tally ESP-NOW  ·  carte ESP32-C3 Super Mini + LED WS2812B
+//  Lampe tally ESP-NOW maillée  ·  carte ESP32-C3 Super Mini + LED WS2812B
 // ----------------------------------------------------------------------------
-//  - Écoute les trames tally diffusées par l'émetteur (ESP-NOW, canal 1).
+//  - Écoute les trames tally diffusées par l'émetteur (ESP-NOW, canal 1)
+//    ou relayées par les autres lampes.
+//  - Maillage : chaque trame nouvelle (numéro jamais vu) est rediffusée une fois,
+//    après 2 à 14 ms au hasard, avec TTL - 1. Les doublons sont ignorés : pas de
+//    boucle ni de tempête. Une lampe hors de portée de l'émetteur reçoit donc le
+//    tally par ses voisines (jusqu'à TTL_MAX sauts, quelques ms par saut).
 //  - Une seule couleur à la fois, par priorité BLEU > ROUGE > VERT :
-//      bleu fixe        -> plus de liaison radio avec l'émetteur (rien depuis TIMEOUT_MS)
+//      bleu fixe        -> plus aucune trame reçue depuis TIMEOUT_MS
 //      bleu clignotant  -> l'émetteur répond mais n'a plus l'ATEM
 //      rouge            -> SA caméra (CAM ci-dessous) au programme
 //      vert             -> SA caméra en preview
@@ -20,34 +25,64 @@
 #include <esp_wifi.h>
 #include <Adafruit_NeoPixel.h>
 
-// ---------- Réglages (repris du CSV) ----------
+// ---------- Réglages ----------
 static const uint8_t  CAM = 1;              // caméra suivie, de 1 à 8 : une lampe par caméra
-static const uint8_t  CANAL_ESPNOW = 1;     // identique sur l'émetteur
+static const bool     RELAIS = true;        // false : la lampe écoute sans relayer
+static const uint8_t  CANAL_ESPNOW = 1;     // identique sur l'émetteur et toutes les lampes
 static const uint32_t TIMEOUT_MS = 2000;
 
 static const uint8_t  PIN_WS2812 = 4;
 static const uint16_t NB_LEDS = 1;          // mettre le nombre de LED si c'est un anneau ou un ruban
 static const uint8_t  LUMINOSITE = 160;     // 0 à 255 : une WS2812B à fond tire ~60 mA par LED
 
+static const uint8_t  TRAME_LEN = 16;
+static const uint8_t  BROADCAST[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+
 Adafruit_NeoPixel leds(NB_LEDS, PIN_WS2812, NEO_GRB + NEO_KHZ800);
 
-// Écrits dans le callback ESP-NOW (tâche Wi-Fi), lus dans loop()
+// Écrits dans le callback ESP-NOW (tâche Wi-Fi), lus dans loop().
+// On ne réémet jamais depuis le callback : la trame à relayer est confiée à loop().
+portMUX_TYPE verrou = portMUX_INITIALIZER_UNLOCKED;
 volatile uint32_t dernierMessage = 0;
 volatile bool dejaRecu = false;
+volatile uint8_t dernierSeq = 0;
 volatile uint8_t atemOk = 0;
 volatile uint8_t etatCam = 0;
+volatile uint8_t sauts = 0;
+uint8_t relais[TRAME_LEN];
+volatile bool relaisEnAttente = false;
+volatile uint32_t relaisA = 0;
 
 uint32_t couleurActuelle = 0xFFFFFFFF;
 int etatAvant = -1;
+uint8_t sautsAffiches = 0xFF;
 
-// Trame tally : 'T' 'L' | version=1 | numéro | ATEM ok | nb caméras | 1 octet par caméra
+// Trame v2 : 'T' 'L' | version=2 | numéro | ATEM ok | nb caméras | TTL | sauts | 1 octet par caméra
+static bool estNouvelle(uint8_t seq, uint32_t maintenant) {
+  if (!dejaRecu || maintenant - dernierMessage > 1000) return true;   // 1re trame, ou émetteur redémarré
+  uint8_t d = seq - dernierSeq;                                        // comparaison sur 8 bits
+  return d > 0 && d < 128;
+}
+
 static void traiterTrame(const uint8_t *data, int len) {
-  if (len < 6 || data[0] != 'T' || data[1] != 'L' || data[2] != 1) return;
-  uint8_t nb = data[5];
-  etatCam = (CAM <= nb && 5 + CAM < len) ? data[5 + CAM] : 0;
-  atemOk = data[4];
-  dernierMessage = millis();
+  if (len < TRAME_LEN || data[0] != 'T' || data[1] != 'L' || data[2] != 2) return;
+  uint32_t maintenant = millis();
+  portENTER_CRITICAL(&verrou);
+  if (!estNouvelle(data[3], maintenant)) { portEXIT_CRITICAL(&verrou); return; }   // doublon
+  dernierSeq = data[3];
+  dernierMessage = maintenant;
   dejaRecu = true;
+  atemOk = data[4];
+  etatCam = (CAM <= data[5]) ? data[7 + CAM] : 0;
+  sauts = data[7] + 1;
+  if (RELAIS && data[6] > 1) {
+    memcpy(relais, data, TRAME_LEN);
+    relais[6] = data[6] - 1;                          // TTL
+    relais[7] = data[7] + 1;                          // sauts
+    relaisA = maintenant + 2 + (esp_random() % 13);   // 2 à 14 ms : les voisines n'émettent pas ensemble
+    relaisEnAttente = true;
+  }
+  portEXIT_CRITICAL(&verrou);
 }
 
 #if ESP_ARDUINO_VERSION_MAJOR >= 3
@@ -79,26 +114,50 @@ void setup() {
     return;
   }
   esp_now_register_recv_cb(surReception);
-  Serial.printf("Lampe prête, caméra %d, canal %d, MAC %s\n", CAM, CANAL_ESPNOW, WiFi.macAddress().c_str());
+  // Pair de diffusion, pour relayer
+  esp_now_peer_info_t pair = {};
+  memcpy(pair.peer_addr, BROADCAST, 6);
+  pair.channel = CANAL_ESPNOW;
+  pair.ifidx = WIFI_IF_STA;
+  pair.encrypt = false;
+  if (esp_now_add_peer(&pair) != ESP_OK) Serial.println("Erreur esp_now_add_peer");
+  Serial.printf("Lampe prête, caméra %d, canal %d, relais %s, MAC %s\n",
+                CAM, CANAL_ESPNOW, RELAIS ? "actif" : "inactif", WiFi.macAddress().c_str());
 }
 
 void loop() {
-  uint32_t dernier = dernierMessage;        // lu avant millis() : pas de soustraction négative
-  uint32_t maintenant = millis();
+  // Relais en attente
+  uint8_t aEnvoyer[TRAME_LEN];
+  bool envoyer = false;
+  portENTER_CRITICAL(&verrou);
+  if (relaisEnAttente && (int32_t)(millis() - relaisA) >= 0) {
+    memcpy(aEnvoyer, relais, TRAME_LEN);
+    relaisEnAttente = false;
+    envoyer = true;
+  }
+  uint32_t dernier = dernierMessage;
+  bool recu = dejaRecu;
+  uint8_t ok = atemOk, e = etatCam, s = sauts;
+  portEXIT_CRITICAL(&verrou);
+  if (envoyer) esp_now_send(BROADCAST, aEnvoyer, TRAME_LEN);
 
-  // 0 : liaison émetteur perdue, 1 : ATEM perdu, 2 : programme, 3 : preview, 4 : rien
+  uint32_t maintenant = millis();
+  // 0 : plus de trame, 1 : ATEM perdu, 2 : programme, 3 : preview, 4 : rien
   int etat = 4;
-  uint8_t e = etatCam;
-  if (!dejaRecu || maintenant - dernier > TIMEOUT_MS) etat = 0;
-  else if (atemOk == 0) etat = 1;
+  if (!recu || maintenant - dernier > TIMEOUT_MS) etat = 0;
+  else if (ok == 0) etat = 1;
   else if (e & 0x01) etat = 2;
   else if (e & 0x02) etat = 3;
 
   if (etat != etatAvant) {
-    static const char *noms[] = {"plus de liaison avec l'émetteur : bleu", "émetteur sans ATEM : bleu clignotant",
+    static const char *noms[] = {"plus de trame tally : bleu", "émetteur sans ATEM : bleu clignotant",
                                  "programme : rouge", "preview : vert", "hors antenne : éteinte"};
     Serial.printf("CAM %d %s\n", CAM, noms[etat]);
     etatAvant = etat;
+  }
+  if (etat != 0 && s != sautsAffiches) {
+    Serial.printf("Trame reçue en %d saut(s)\n", s);
+    sautsAffiches = s;
   }
 
   const uint32_t BLEU = leds.Color(0, 0, 255), ROUGE = leds.Color(255, 0, 0), VERT = leds.Color(0, 255, 0);
@@ -109,5 +168,5 @@ void loop() {
     case 3: afficher(VERT); break;
     default: afficher(0);
   }
-  delay(5);
+  delay(1);
 }

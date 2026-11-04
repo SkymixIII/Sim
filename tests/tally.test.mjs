@@ -78,14 +78,15 @@ test("tally 8 caméras : PGM rouge, PVW vert, CUT, AUTO, priorité bleu > rouge 
     assert.deepEqual(t.lampe(8), RED, "après l'AUTO");
     assert.deepEqual(t.lampe(7), GREEN);
 
-    // Lampe 3 hors de portée : bleu seul, même si sa caméra passe au programme (bleu > rouge)
+    // Lampe 3 emportée loin de tout le monde : bleu seul, même au programme (bleu > rouge)
     await t.key("pgm3", 100);
-    t.link("l_radio_3").cut = true;
+    const n3 = t.circuit.radio.nodes.lampe3, pos = { x: n3.x, y: n3.y };
+    Object.assign(n3, { x: 170, y: 0 });
     await sleep(2400);
-    assert.deepEqual(t.lampe(3), BLUE, "bleu fixe sans émetteur");
+    assert.deepEqual(t.lampe(3), BLUE, "bleu fixe sans trame");
     assert.deepEqual(t.lampe(7), GREEN, "les autres lampes restent à jour");
-    t.link("l_radio_3").cut = false;
-    await sleep(300);
+    Object.assign(n3, pos);
+    await sleep(400);
     assert.deepEqual(t.lampe(3), RED, "retour au rouge");
 
     // Câble RJ45 débranché : LED statut allumée, lampes en bleu clignotant
@@ -102,6 +103,35 @@ test("tally 8 caméras : PGM rouge, PVW vert, CUT, AUTO, priorité bleu > rouge 
     assert.equal(t.ledOn("em_led_statut"), false);
     assert.deepEqual(t.lampe(3), RED);
     assert.deepEqual(t.errors, []);
+  } finally {
+    t.bench.stopAll();
+  }
+});
+
+test("maillage : les lampes 5 à 8, hors de portée de l'émetteur, reçoivent par relais", { timeout: 15000 }, async () => {
+  const t = setup();
+  t.bench.startAll();
+  try {
+    await sleep(2000);
+    await t.key("pvw8");
+    assert.deepEqual(t.lampe(8), GREEN, "lampe 8 à jour via le maillage");
+    assert.deepEqual(t.lampe(5), OFF);
+    const hops = (n) => Math.max(...t.serial.filter((l) => l.startsWith(`[lampe${n}] Trame reçue en`)).map((l) => Number(l.match(/en (\d+) saut/)[1])));
+    assert.ok(hops(8) >= 3, `lampe 8 : ${hops(8)} sauts`);
+    assert.ok(t.bench.net.heard.get("lampe8")?.from !== "emetteur", "la lampe 8 n'entend pas l'émetteur directement");
+  } finally {
+    t.bench.stopAll();
+  }
+});
+
+test("sans relais, les lampes hors de portée restent en bleu", { timeout: 10000 }, async () => {
+  const t = setup();
+  for (const c of t.circuit.components) if (c.code?.includes("const bool RELAIS = true;")) c.code = c.code.replace("const bool RELAIS = true;", "const bool RELAIS = false;");
+  t.bench.startAll();
+  try {
+    await sleep(2600);
+    assert.deepEqual(t.lampe(1), RED, "lampe 1 entend l'émetteur");
+    for (const n of [5, 6, 7, 8]) assert.deepEqual(t.lampe(n), BLUE, `lampe ${n} hors de portée`);
   } finally {
     t.bench.stopAll();
   }

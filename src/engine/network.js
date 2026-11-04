@@ -29,6 +29,25 @@ export const LINK_KINDS = {
   },
 };
 
+// Modèle radio (quand le circuit a une carte radio : circuit.radio) :
+//   chaque appareil a une position (m) et une portée (m) ; une paire peut avoir un obstacle (0 à 0,9)
+//   qui réduit la portée effective. Un message de A vers B passe à coup sûr jusqu'à 70 % de la
+//   portée de A, puis de moins en moins jusqu'à 0 à la portée. La portée dépend de l'émetteur,
+//   donc un lien peut être asymétrique (une lampe entend l'émetteur mais pas l'inverse).
+export const RADIO_DEFAULT_RANGE = 60;
+export const pairKey = (a, b) => (a < b ? `${a}|${b}` : `${b}|${a}`);
+
+export function radioQuality(radio, from, to) {
+  const a = radio?.nodes?.[from], b = radio?.nodes?.[to];
+  if (!a || !b) return 0;
+  const R = (a.range ?? RADIO_DEFAULT_RANGE) * (1 - (radio.obstacles?.[pairKey(from, to)] ?? 0));
+  const d = Math.hypot(a.x - b.x, a.y - b.y);
+  if (R <= 0) return 0;
+  if (d <= 0.7 * R) return 1;
+  if (d >= R) return 0;
+  return (R - d) / (0.3 * R);
+}
+
 const INBOX_MAX = 32;     // file de réception d'une carte, comme le tampon de lwIP / ESP-NOW
 const ESPNOW_MAX = 250;   // ESP_NOW_MAX_DATA_LEN
 
@@ -38,8 +57,10 @@ export class VirtualNetwork {
    * isOnline : (compId) => la carte exécute-t-elle un programme ?
    * onTraffic : (link, bytes) => appelé à chaque message transmis
    */
-  constructor({ getLinks, isOnline, onTraffic = () => {}, random = Math.random }) {
-    this.getLinks = getLinks; this.isOnline = isOnline; this.onTraffic = onTraffic; this.random = random;
+  constructor({ getLinks, getRadio = () => null, isOnline, onTraffic = () => {}, random = Math.random }) {
+    this.getLinks = getLinks; this.getRadio = getRadio; this.isOnline = isOnline; this.onTraffic = onTraffic; this.random = random;
+    this.radioStats = new Map(); // "a>b" -> { count, lost, at }
+    this.heard = new Map();      // récepteur -> { from, at } : dernier message radio reçu
     this.boards = new Map();
     this.stats = new Map();   // link.id -> { count, lost, last, at }
   }
@@ -96,6 +117,26 @@ export class VirtualNetwork {
       espnowSend(bytes) {
         const me = net.state(id);
         if (me.channel === null || bytes.length > ESPNOW_MAX) return false;
+        const radio = net.getRadio();
+        if (radio) {
+          // Diffusion : tout appareil allumé, sur le même canal et à portée peut l'entendre.
+          for (const to of Object.keys(radio.nodes ?? {})) {
+            if (to === id || !net.isOnline(to) || net.state(to).channel !== me.channel) continue;
+            const q = radioQuality(radio, id, to);
+            if (q <= 0) continue;
+            const key = `${id}>${to}`;
+            if (!net.radioStats.has(key)) net.radioStats.set(key, { count: 0, lost: 0, at: 0 });
+            const st = net.radioStats.get(key);
+            if (net.random() >= q) { st.lost++; continue; }
+            st.count++; st.at = Date.now();
+            const box = net.state(to).espnow;
+            if (box.length >= INBOX_MAX) box.shift();
+            box.push(bytes.slice());
+            net.heard.set(to, { from: id, at: Date.now() });
+            net.onTraffic({ id: key, kind: "radio" }, bytes);
+          }
+          return true;
+        }
         for (const l of net.linksOf(id, "espnow")) {
           const to = l.a === id ? l.b : l.a;
           if (!net.up(l) || net.state(to).channel !== me.channel) continue;

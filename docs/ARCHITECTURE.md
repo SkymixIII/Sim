@@ -86,6 +86,7 @@ Ce qui n'est pas un fil de cuivre passe par `circuit.links` : `{ id, kind: "rj45
 
 - **rj45** : point à point, sans perte, monté si le câble est branché et que les deux cartes tournent.
 - **espnow** : diffusion vers toutes les cartes reliées, sur le même canal Wi-Fi, avec une perte réglable (portée).
+- **carte radio** (`circuit.radio`, prioritaire sur les liens espnow) : chaque appareil a une position en mètres et une portée, chaque paire un obstacle éventuel. Une diffusion atteint tout appareil allumé sur le même canal avec une probabilité qui dépend de la distance (100 % jusqu'à 70 % de la portée de l'émetteur, puis décroissante). C'est ce qui permet de simuler le maillage des lampes.
 
 Dans un sketch : `Rj45.send(buf, n)`, `n = Rj45.receive(buf)`, `Rj45.linkUp()`, `EspNow.begin(canal)`, `EspNow.broadcast(buf, n)`, `n = EspNow.receive(buf)`. Les tableaux sont passés par référence, comme un `uint8_t*`. Sur le plan, un clic sur un lien permet de le débrancher, de le mettre hors de portée ou d'en lire le trafic.
 

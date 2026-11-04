@@ -33,6 +33,7 @@ static const uint32_t TIMEOUT_ATEM_MS = 2000;
 static const uint32_t RELANCE_HELLO_MS = 1000;
 static const uint8_t  LED_STATUT = 2;
 static const uint8_t  MAX_CAMS = 8;                    // caméras transmises (entrées 1 à 8 de l'ATEM)
+static const uint8_t  TTL_MAX = 4;                     // relais maximum dans le maillage des lampes
 
 // ---------- WT32-ETH01 : PHY LAN8720 ----------
 static const int ETH_ADDR = 1;
@@ -141,16 +142,18 @@ void traiterPaquet(int n) {
   }
 }
 
-// Trame tally ESP-NOW (6 + MAX_CAMS octets) :
-//   'T' 'L' | version=1 | numéro | ATEM ok (0/1) | nb caméras | 1 octet par caméra
-//   (bit 0 = programme, bit 1 = preview)
+// Trame tally ESP-NOW v2 (8 + MAX_CAMS = 16 octets) :
+//   'T' 'L' | version=2 | numéro | ATEM ok (0/1) | nb caméras | TTL | sauts | 1 octet par caméra
+//   (bit 0 = programme, bit 1 = preview). Les lampes relaient la trame tant que TTL > 1.
 void diffuser() {
-  uint8_t m[6 + MAX_CAMS];
-  m[0] = 'T'; m[1] = 'L'; m[2] = 1;
+  uint8_t m[8 + MAX_CAMS];
+  m[0] = 'T'; m[1] = 'L'; m[2] = 2;
   m[3] = seq++;
   m[4] = (etat == CONNECTE) ? 1 : 0;
   m[5] = MAX_CAMS;
-  for (int k = 0; k < MAX_CAMS; k++) m[6 + k] = (etat == CONNECTE) ? tally[k] : 0;
+  m[6] = TTL_MAX;
+  m[7] = 0;
+  for (int k = 0; k < MAX_CAMS; k++) m[8 + k] = (etat == CONNECTE) ? tally[k] : 0;
   esp_now_send(BROADCAST, m, sizeof(m));
   dernierRadio = millis();
 }

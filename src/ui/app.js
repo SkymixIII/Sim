@@ -1,7 +1,7 @@
 // Interface : plan de travail SVG, palette, panneau de mesures, code des cartes, liens virtuels.
 import { COMPONENTS, REGISTRY, defaultParams } from "../components/index.js";
 import { pinPositions, rotatePoint } from "../engine/circuit.js";
-import { LINK_KINDS } from "../engine/network.js";
+import { LINK_KINDS, radioQuality, pairKey, RADIO_DEFAULT_RANGE } from "../engine/network.js";
 import { fmt, parseSI } from "../engine/units.js";
 import { Bench } from "../runtime/bench.js";
 import { exampleCircuit, EXAMPLE_SKETCH } from "./example.js";
@@ -9,7 +9,7 @@ import { tallyCircuit } from "./montages/tally.js";
 
 const G = 20;          // pixels par pas de grille
 let COLS = 64, ROWS = 40;
-const STORE = "etabli.circuit.v2", STORE_CODE = "etabli.code.v1";
+const STORE = "etabli.circuit.v3", STORE_CODE = "etabli.code.v1";
 const MONTAGES = {
   tally: { label: "Tally ATEM 8 caméras", build: tallyCircuit },
   demo: { label: "LED + bouton (démo)", build: exampleCircuit },
@@ -75,7 +75,7 @@ const newId = (p) => `${p}${(uid++).toString(36)}`;
 
 // ---------- Simulation ----------
 function persist() {
-  const clean = { components: circuit.components.map(({ rt, ...c }) => c), wires: circuit.wires, links: circuit.links };
+  const clean = { components: circuit.components.map(({ rt, ...c }) => c), wires: circuit.wires, links: circuit.links, radio: circuit.radio };
   save(STORE, JSON.stringify(clean));
 }
 
@@ -467,6 +467,8 @@ function loadCircuit(c) {
   zoomToFit();
   refresh();
   renderCodePanel();
+  radioSel = null;
+  showTab($("panel-radio").hidden ? "inspect" : "radio");
   bench.startAll();
   wrap.scrollTo(0, 0);
 }
@@ -620,7 +622,10 @@ $("status").addEventListener("click", (e) => {
 
 // ---------- Onglets ----------
 function showTab(name) {
-  for (const t of ["inspect", "code"]) {
+  $("tab-radio").hidden = !circuit.radio;
+  if (name === "radio" && !circuit.radio) name = "inspect";
+  if (name === "radio") renderRadio();
+  for (const t of ["inspect", "code", "radio"]) {
     $(`tab-${t}`).classList.toggle("active", t === name);
     $(`tab-${t}`).setAttribute("aria-selected", t === name);
     $(`panel-${t}`).hidden = t !== name;
@@ -628,6 +633,147 @@ function showTab(name) {
 }
 $("tab-inspect").onclick = () => showTab("inspect");
 $("tab-code").onclick = () => showTab("code");
+$("tab-radio").onclick = () => showTab("radio");
+
+// ---------- Carte radio (maillage ESP-NOW) ----------
+// Les appareils radio sont placés sur un plan en mètres. On règle la portée de chacun
+// et un obstacle par paire ; les traits montrent la qualité de chaque liaison,
+// les flèches le dernier chemin réellement emprunté par les trames.
+const MAP_W = 170, MAP_H = 140, MAP_PX = 2; // mètres, pixels par mètre
+let radioSel = null; // { kind: "node", id } | { kind: "pair", a, b }
+let radioDrag = null;
+const radioName = (id) => compById(id)?.name ?? id;
+
+function qualityColor(q) {
+  if (q >= 0.99) return "var(--ok)";
+  if (q > 0) return "var(--warn)";
+  return "var(--line)";
+}
+
+function renderRadio({ mapOnly = false } = {}) {
+  const r = circuit.radio;
+  if (!r) return;
+  const ids = Object.keys(r.nodes).filter((id) => compById(id));
+  const now = Date.now();
+  let g = `<rect class="radio-bg" x="0" y="0" width="${MAP_W * MAP_PX}" height="${MAP_H * MAP_PX}" rx="6"/>`;
+  for (let m = 0; m <= MAP_W; m += 10) g += `<line class="radio-grid${m % 50 ? "" : " major"}" x1="${m * MAP_PX}" y1="0" x2="${m * MAP_PX}" y2="${MAP_H * MAP_PX}"/>`;
+  for (let m = 0; m <= MAP_H; m += 10) g += `<line class="radio-grid${m % 50 ? "" : " major"}" x1="0" y1="${m * MAP_PX}" x2="${MAP_W * MAP_PX}" y2="${m * MAP_PX}"/>`;
+  g += `<text class="radio-scale" x="6" y="${MAP_H * MAP_PX - 6}">carreau = 10 m</text>`;
+  const P = (id) => [r.nodes[id].x * MAP_PX, r.nodes[id].y * MAP_PX];
+  if (radioSel?.kind === "node" && r.nodes[radioSel.id]) {
+    const [x, y] = P(radioSel.id);
+    g += `<circle class="radio-range" cx="${x}" cy="${y}" r="${(r.nodes[radioSel.id].range ?? RADIO_DEFAULT_RANGE) * MAP_PX}"/>`;
+  }
+  for (let i = 0; i < ids.length; i++) for (let j = i + 1; j < ids.length; j++) {
+    const a = ids[i], b = ids[j];
+    const q = Math.max(radioQuality(r, a, b), radioQuality(r, b, a));
+    const sel = radioSel?.kind === "pair" && pairKey(radioSel.a, radioSel.b) === pairKey(a, b);
+    const obst = r.obstacles?.[pairKey(a, b)];
+    if (q <= 0 && !sel && !obst) continue;
+    const [x1, y1] = P(a), [x2, y2] = P(b);
+    g += `<g data-pair="${a}|${b}"><line class="radio-link${sel ? " sel" : ""}${obst ? " obst" : ""}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" style="stroke:${qualityColor(q)};opacity:${0.35 + 0.65 * q}"/>`
+      + `<line class="radio-hit" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/></g>`;
+  }
+  // Dernier chemin réellement emprunté : qui a fait entendre chaque appareil
+  for (const id of ids) {
+    const h = bench.net.heard.get(id);
+    if (!h || now - h.at > 1500 || !r.nodes[h.from]) continue;
+    const [x1, y1] = P(h.from), [x2, y2] = P(id);
+    const k = 1 - 14 / Math.max(14, Math.hypot(x2 - x1, y2 - y1));
+    g += `<line class="radio-path" x1="${x1}" y1="${y1}" x2="${x1 + (x2 - x1) * k}" y2="${y1 + (y2 - y1) * k}" marker-end="url(#radio-arrow)"/>`;
+  }
+  for (const id of ids) {
+    const [x, y] = P(id);
+    const c = compById(id);
+    const sel = radioSel?.kind === "node" && radioSel.id === id;
+    const isTx = id === "emetteur" || /émetteur/i.test(c?.name ?? "");
+    const off = bench.state(id) !== "running";
+    const led = ledColorOf(id);
+    g += `<g class="radio-node${sel ? " sel" : ""}${off ? " off" : ""}" data-node="${id}" transform="translate(${x},${y})">`
+      + `<circle r="${isTx ? 11 : 9}" class="${isTx ? "tx" : ""}" style="${led ? `fill:${led}` : ""}"/>`
+      + `<text y="${isTx ? 25 : 22}">${esc((c?.name ?? id).replace("Lampe ", ""))}</text></g>`;
+  }
+  $("radio-map").innerHTML = `<defs><marker id="radio-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="radio-arrowhead"/></marker></defs>` + g;
+  if (!mapOnly) renderRadioInspector();
+}
+
+// Couleur affichée par une lampe (LED allumée la plus prioritaire), pour la colorer sur la carte.
+function ledColorOf(id) {
+  if (!sim?.ok) return null;
+  for (const [suffix, color] of [["_led_bleu", "#2f6bff"], ["_led_rouge", "#ff2a1a"], ["_led_vert", "#22e04a"]]) {
+    if ((sim.comps.get(id + suffix)?.avg.I ?? 0) > 0.002) return color;
+  }
+  return null;
+}
+
+function renderRadioInspector() {
+  const el = $("radio-inspect");
+  const r = circuit.radio;
+  if (radioSel?.kind === "node" && r.nodes[radioSel.id]) {
+    const n = r.nodes[radioSel.id];
+    const h = bench.net.heard.get(radioSel.id);
+    const fresh = h && Date.now() - h.at < 1500;
+    el.innerHTML = `<h3>${esc(radioName(radioSel.id))}</h3>
+      <div class="params"><label for="radio-range">Portée : ${n.range ?? RADIO_DEFAULT_RANGE} m<input type="range" id="radio-range" min="0" max="200" step="5" value="${n.range ?? RADIO_DEFAULT_RANGE}"></label></div>
+      <table class="readings"><tr><td>Position</td><td>${Math.round(n.x)} m, ${Math.round(n.y)} m</td></tr>
+      <tr><td>Entend en dernier</td><td>${fresh ? esc(radioName(h.from)) : "personne"}</td></tr></table>`;
+  } else if (radioSel?.kind === "pair") {
+    const { a, b } = radioSel;
+    const k = pairKey(a, b);
+    const o = r.obstacles?.[k] ?? 0;
+    const d = Math.hypot(r.nodes[a].x - r.nodes[b].x, r.nodes[a].y - r.nodes[b].y);
+    const st = (x, y) => bench.net.radioStats.get(`${x}>${y}`);
+    const row = (x, y) => { const s = st(x, y); return `<tr><td>${esc(radioName(x))} → ${esc(radioName(y))}</td><td>${Math.round(radioQuality(r, x, y) * 100)} %${s ? ` · ${s.count} reçus, ${s.lost} perdus` : ""}</td></tr>`; };
+    el.innerHTML = `<h3>${esc(radioName(a))} ↔ ${esc(radioName(b))}</h3>
+      <div class="params"><label for="radio-obst">Obstacle (mur, décor, public) : ${Math.round(o * 100)} % de portée en moins<input type="range" id="radio-obst" min="0" max="0.9" step="0.05" value="${o}"></label></div>
+      <table class="readings"><tr><td>Distance</td><td>${Math.round(d)} m</td></tr>${row(a, b)}${row(b, a)}</table>`;
+  } else {
+    el.innerHTML = `<p class="summary">Glissez un appareil pour le déplacer. Cliquez-le pour régler sa portée, ou cliquez un trait pour ajouter un obstacle entre deux appareils.</p>
+      <p class="summary">Vert : liaison sûre. Orange : messages perdus en partie. Flèches : par où chaque appareil reçoit vraiment la trame (maillage).</p>`;
+  }
+}
+
+$("radio-map").addEventListener("pointerdown", (e) => {
+  const node = e.target.closest("[data-node]");
+  const pair = e.target.closest("[data-pair]");
+  if (node) {
+    radioSel = { kind: "node", id: node.dataset.node };
+    radioDrag = { id: node.dataset.node };
+    $("radio-map").setPointerCapture(e.pointerId);
+  } else if (pair) {
+    const [a, b] = pair.dataset.pair.split("|");
+    radioSel = { kind: "pair", a, b };
+  } else radioSel = null;
+  renderRadio();
+});
+$("radio-map").addEventListener("pointermove", (e) => {
+  if (!radioDrag) return;
+  const pt = $("radio-map").createSVGPoint();
+  pt.x = e.clientX; pt.y = e.clientY;
+  const p = pt.matrixTransform($("radio-map").getScreenCTM().inverse());
+  const n = circuit.radio.nodes[radioDrag.id];
+  n.x = Math.max(0, Math.min(MAP_W, p.x / MAP_PX)); n.y = Math.max(0, Math.min(MAP_H, p.y / MAP_PX));
+  renderRadio();
+});
+$("radio-map").addEventListener("pointerup", () => { if (radioDrag) { radioDrag = null; persist(); } });
+$("radio-inspect").addEventListener("input", (e) => {
+  const r = circuit.radio;
+  if (e.target.id === "radio-range" && radioSel?.kind === "node") {
+    r.nodes[radioSel.id].range = Number(e.target.value);
+    e.target.previousSibling.textContent = `Portée : ${e.target.value} m`;
+  } else if (e.target.id === "radio-obst" && radioSel?.kind === "pair") {
+    r.obstacles = r.obstacles ?? {};
+    const v = Number(e.target.value), k = pairKey(radioSel.a, radioSel.b);
+    if (v > 0) r.obstacles[k] = v; else delete r.obstacles[k];
+    e.target.previousSibling.textContent = `Obstacle (mur, décor, public) : ${Math.round(v * 100)} % de portée en moins`;
+  } else return;
+  persist();
+  renderRadio({ mapOnly: true }); // sans reconstruire le curseur en cours de réglage
+});
+setInterval(() => {
+  if ($("panel-radio").hidden || radioDrag) return;
+  renderRadio({ mapOnly: !!document.activeElement?.closest?.("#radio-inspect") });
+}, 300);
 
 // ---------- Liens virtuels (inspecteur) ----------
 function boardLinksSection(comp) {
@@ -752,5 +898,6 @@ zoomToFit();
 renderPalette();
 refresh({ persistNow: false });
 renderCodePanel();
+showTab("inspect");
 bench.startAll();
 wrap.scrollTo(0, 0);

@@ -1,27 +1,45 @@
-# Firmware du tally ATEM 8 caméras
+# Firmware du tally ATEM 8 caméras (radio maillée)
 
 ```
  ATEM 2 M/E Constellation HD         WT32-ETH01                       8 × ESP32-C3 Super Mini
- 192.168.10.240        ── RJ45 ──>   émetteur    ── ESP-NOW canal 1 ──>  une lampe par caméra
- (protocole ATEM, UDP 9910)          192.168.10.50   (10 trames/s)      (WS2812B)
+ 192.168.10.240        ── RJ45 ──>   émetteur    ── ESP-NOW canal 1 ──>  une lampe par caméra,
+ (protocole ATEM, UDP 9910)          192.168.10.50   (10 trames/s)      chacune relaie la trame
 ```
 
 | Dossier | Carte | Rôle |
 |---|---|---|
 | `emetteur_wt32eth01/` | WT32-ETH01 | Se connecte à l'ATEM par le RJ45, lit son tally et le rediffuse en ESP-NOW. LED statut GPIO2 allumée = pas d'ATEM. |
-| `lampe_esp32c3/` | ESP32-C3 Super Mini | Une seule couleur à la fois, priorité **BLEU > ROUGE > VERT**. |
+| `lampe_esp32c3/` | ESP32-C3 Super Mini | Une seule couleur à la fois, priorité **BLEU > ROUGE > VERT**. Relaie chaque trame nouvelle (maillage). |
 
 Couleurs de la lampe :
 
 | Couleur | Signification |
 |---|---|
-| Bleu fixe | Plus de liaison radio avec l'émetteur (rien reçu depuis 2 s) |
+| Bleu fixe | Plus aucune trame reçue depuis 2 s (ni de l'émetteur, ni d'une autre lampe) |
 | Bleu clignotant | L'émetteur répond, mais il n'a plus l'ATEM |
 | Rouge | Caméra au programme (et pendant un AUTO, la caméra entrante) |
 | Vert | Caméra en preview |
 | Éteinte | Caméra hors antenne |
 
 Le même système tourne dans l'Établi (montage **Tally ATEM 8 caméras**). L'ATEM y est modélisé côté réseau, avec son pupitre PGM / PVW / CUT / AUTO. Les sketches du simulateur suivent la même logique et échangent les mêmes octets. Seules les entrées/sorties réseau diffèrent (`Rj45.*` / `EspNow.*` au lieu de `WiFiUDP` / `esp_now_*`).
+
+## Maillage : comment la portée est étendue
+
+ESP-NOW ne fait pas de maillage tout seul. Les lampes utilisent une **inondation contrôlée**, la méthode la plus simple et la plus rapide pour un message court envoyé à tout le monde :
+
+1. L'émetteur diffuse la trame avec un **numéro** (0 à 255, puis on recommence) et un **TTL** de 4.
+2. Une lampe qui reçoit une trame **nouvelle** (numéro plus récent que la dernière acceptée) l'applique, puis la **rediffuse une seule fois**, avec TTL − 1 et sauts + 1, après un délai au hasard de 2 à 14 ms. Le délai évite que toutes les voisines émettent au même instant.
+3. Une trame déjà vue (même numéro, arrivée par un autre chemin) est ignorée. Une trame dont le TTL vaut 1 n'est plus relayée. Il n'y a donc ni boucle ni tempête.
+
+Résultat : une lampe hors de portée de l'émetteur reçoit le tally par ses voisines, avec quelques millisecondes de retard par saut (au plus 4 sauts). Il n'y a pas de table de routage à configurer : on ajoute une lampe, elle relaie. Pour le voir, le moniteur série de chaque lampe affiche « Trame reçue en N saut(s) ».
+
+À savoir :
+- Toutes les lampes doivent être sur le **même canal**. Une lampe éteinte ne relaie plus : placez-les de façon à garder au moins deux chemins vers le fond du plateau.
+- Le trafic reste léger : 10 trames/s × (1 + 8 relais) ≈ 90 petits paquets par seconde.
+- On peut désactiver le relais d'une lampe avec `RELAIS = false`, par exemple pour une lampe sur batterie.
+- Pour gagner encore en portée, on peut monter des ESP32-C3 avec antenne externe (connecteur IPEX) à la place des Super Mini à antenne céramique. Le mode Wi-Fi « Long Range » (`WIFI_PROTOCOL_LR`) est une autre piste, mais toutes les cartes doivent alors l'activer.
+
+Dans l'Établi, l'onglet **Radio** du montage permet de placer les appareils sur un plan en mètres, de régler la portée de chacun et d'ajouter un obstacle entre deux appareils. On y voit par quel chemin chaque lampe reçoit vraiment la trame.
 
 ## Installation
 
@@ -46,16 +64,20 @@ Le même système tourne dans l'Établi (montage **Tally ATEM 8 caméras**). L'A
 - L'émetteur lit `TlIn` : un octet par entrée, bit 0 programme, bit 1 preview.
 - Sans nouvelles de l'ATEM pendant 2 s, l'émetteur se reconnecte.
 
-**Trame ESP-NOW** (14 octets, diffusée à FF:FF:FF:FF:FF:FF) :
+**Trame ESP-NOW v2** (16 octets, diffusée à FF:FF:FF:FF:FF:FF) :
 
 | Octet | Contenu |
 |---|---|
 | 0–1 | `'T' 'L'` |
-| 2 | version = 1 |
-| 3 | numéro de trame |
+| 2 | version = 2 |
+| 3 | numéro de trame (sert à éliminer les doublons) |
 | 4 | 1 si l'émetteur est connecté à l'ATEM |
 | 5 | nombre de caméras (8) |
-| 6–13 | caméras 1 à 8 : bit 0 programme, bit 1 preview |
+| 6 | TTL : relais encore permis (4 au départ de l'émetteur) |
+| 7 | sauts déjà faits (0 au départ de l'émetteur) |
+| 8–15 | caméras 1 à 8 : bit 0 programme, bit 1 preview |
+
+L'émetteur et les lampes doivent être mis à jour ensemble : une lampe v2 ignore les trames v1.
 
 ## Écarts avec l'établi
 

@@ -28,6 +28,7 @@ export class Bench {
     this.sim = null;
     this.net = new VirtualNetwork({
       getLinks: () => this.getCircuit().links ?? [],
+      getRadio: () => this.getCircuit().radio ?? null,
       isOnline: (id) => this.states.get(id) === "running",
       onTraffic,
     });

@@ -15,6 +15,7 @@ const int PERIODE_RADIO_MS = 100;     // 10 Hz
 const int TIMEOUT_ATEM_MS = 2000;
 const int RELANCE_HELLO_MS = 1000;
 const int MAX_CAMS = 8;
+const int TTL_MAX = 4;                // nombre maximal de relais (sauts) dans le maillage
 
 const int F_ACK_DEMANDE = 0x08;
 const int F_HELLO = 0x10;
@@ -104,14 +105,16 @@ void traiterPaquet(int n) {
 }
 
 void diffuser() {
-  // Trame tally : 'T' 'L', version, numéro, ATEM ok, nb caméras, puis 1 octet par caméra
-  // (bit 0 = programme, bit 1 = preview).
-  tx[0] = 0x54; tx[1] = 0x4C; tx[2] = 1;
+  // Trame tally v2 (16 octets) : 'T' 'L', version 2, numéro, ATEM ok, nb caméras,
+  // TTL (relais encore permis), sauts déjà faits, puis 1 octet par caméra (bit 0 programme, bit 1 preview).
+  tx[0] = 0x54; tx[1] = 0x4C; tx[2] = 2;
   tx[3] = seq;
   tx[4] = (etat == 2) ? 1 : 0;
   tx[5] = MAX_CAMS;
-  for (int k = 0; k < MAX_CAMS; k++) tx[6 + k] = (etat == 2) ? tally[k] : 0;
-  EspNow.broadcast(tx, 6 + MAX_CAMS);
+  tx[6] = TTL_MAX;
+  tx[7] = 0;
+  for (int k = 0; k < MAX_CAMS; k++) tx[8 + k] = (etat == 2) ? tally[k] : 0;
+  EspNow.broadcast(tx, 8 + MAX_CAMS);
   seq = (seq + 1) & 0xFF;
   dernierRadio = millis();
 }
@@ -143,15 +146,18 @@ void loop() {
 }
 `;
 
-export const sketchLampe = (cam) => `// Lampe tally (ESP32-C3 Super Mini) de la caméra ${cam}.
+export const sketchLampe = (cam) => `// Lampe tally (ESP32-C3 Super Mini) de la caméra ${cam}, et relais du maillage ESP-NOW.
 // Une seule couleur à la fois, par priorité : BLEU > ROUGE > VERT.
-//   bleu fixe        : plus de liaison radio avec l'émetteur
+//   bleu fixe        : plus de trame tally reçue (ni de l'émetteur, ni d'une autre lampe)
 //   bleu clignotant  : l'émetteur répond mais n'a plus l'ATEM
 //   rouge            : caméra au programme
 //   vert             : caméra en preview
+// Maillage : chaque trame nouvelle (numéro jamais vu) est rediffusée une fois, après un délai
+// aléatoire, avec TTL - 1. Les doublons sont ignorés : pas de boucle, pas de tempête.
 // Version établi de firmware/lampe_esp32c3/lampe_esp32c3.ino (réel : une WS2812B sur GPIO4).
 
 const int CAM = ${cam};               // caméra suivie : changer ce numéro pour réaffecter la lampe
+const bool RELAIS = true;             // false : la lampe écoute sans relayer
 const int LED_ROUGE = 18;
 const int LED_VERTE = 19;
 const int LED_BLEUE = 21;
@@ -159,8 +165,13 @@ const int CANAL_ESPNOW = 1;
 const int TIMEOUT_MS = 2000;
 
 uint8_t rx[64];
+uint8_t relais[16];
+bool relaisEnAttente = false;
+unsigned long relaisA = 0;
 unsigned long dernierMessage = 0;
 bool dejaRecu = false;
+int dernierSeq = 0;
+int sauts = -1;
 int atemOk = 0;
 int etatCam = 0;
 int actuel[3] = {-1, -1, -1};
@@ -172,34 +183,62 @@ void ecrire(int r, int v, int b) {
   if (b != actuel[2]) { digitalWrite(LED_BLEUE, b); actuel[2] = b; }
 }
 
+// Trame nouvelle : numéro plus récent que le dernier accepté (sur 8 bits),
+// ou rien d'accepté depuis 1 s (émetteur redémarré).
+bool estNouvelle(int seq) {
+  if (!dejaRecu || millis() - dernierMessage > 1000) return true;
+  int d = (seq - dernierSeq) & 0xFF;
+  return d > 0 && d < 128;
+}
+
+void traiter(int n) {
+  if (n < 16 || rx[0] != 0x54 || rx[1] != 0x4C || rx[2] != 2) return;
+  if (!estNouvelle(rx[3])) return;          // doublon déjà reçu par un autre chemin
+  dernierSeq = rx[3];
+  dernierMessage = millis();
+  dejaRecu = true;
+  atemOk = rx[4];
+  etatCam = (CAM <= rx[5]) ? rx[7 + CAM] : 0;
+  if (rx[7] + 1 != sauts) {
+    sauts = rx[7] + 1;
+    Serial.println("Trame reçue en " + String(sauts) + " saut(s)");
+  }
+  if (RELAIS && rx[6] > 1) {
+    for (int i = 0; i < 16; i++) relais[i] = rx[i];
+    relais[6] = rx[6] - 1;                 // TTL
+    relais[7] = rx[7] + 1;                 // sauts
+    relaisEnAttente = true;
+    relaisA = millis() + random(2, 15);    // délai aléatoire : évite que toutes les lampes émettent ensemble
+  }
+}
+
 void setup() {
   Serial.begin(115200);
   pinMode(LED_ROUGE, OUTPUT);
   pinMode(LED_VERTE, OUTPUT);
   pinMode(LED_BLEUE, OUTPUT);
   EspNow.begin(CANAL_ESPNOW);
-  Serial.println("Lampe prête, caméra " + String(CAM) + ", canal " + String(CANAL_ESPNOW));
+  Serial.println("Lampe prête, caméra " + String(CAM) + ", canal " + String(CANAL_ESPNOW) + (RELAIS ? ", relais actif" : ""));
 }
 
 void loop() {
   int n = EspNow.receive(rx);
   while (n > 0) {
-    if (n >= 6 && rx[0] == 0x54 && rx[1] == 0x4C && rx[2] == 1) {
-      dernierMessage = millis();
-      dejaRecu = true;
-      atemOk = rx[4];
-      etatCam = (CAM <= rx[5]) ? rx[5 + CAM] : 0;
-    }
+    traiter(n);
     n = EspNow.receive(rx);
   }
-  // 0 : liaison émetteur perdue, 1 : ATEM perdu, 2 : programme, 3 : preview, 4 : rien
+  if (relaisEnAttente && millis() >= relaisA) {
+    EspNow.broadcast(relais, 16);
+    relaisEnAttente = false;
+  }
+  // 0 : plus de trame, 1 : ATEM perdu, 2 : programme, 3 : preview, 4 : rien
   int etat = 4;
   if (!dejaRecu || millis() - dernierMessage > TIMEOUT_MS) etat = 0;
   else if (atemOk == 0) etat = 1;
   else if (etatCam & 1) etat = 2;
   else if (etatCam & 2) etat = 3;
   if (etat != etatAvant) {
-    if (etat == 0) Serial.println("Plus de liaison avec l'émetteur : bleu");
+    if (etat == 0) { Serial.println("Plus de trame tally : bleu"); sauts = -1; }
     if (etat == 1) Serial.println("Émetteur sans ATEM : bleu clignotant");
     if (etat == 2) Serial.println("Programme : rouge");
     if (etat == 3) Serial.println("Preview : vert");
@@ -211,13 +250,27 @@ void loop() {
   else if (etat == 2) ecrire(HIGH, LOW, LOW);
   else if (etat == 3) ecrire(LOW, HIGH, LOW);
   else ecrire(LOW, LOW, LOW);
-  delay(5);
+  delay(2);
 }
 `;
 
 export const NB_CAMS = 8;
 const LAMPE_X = [2, 26, 50, 74];
 const LAMPE_Y = [18, 35];
+
+// Carte radio par défaut (mètres) : les lampes 1 à 4 sont près de l'émetteur, les lampes 5 à 8
+// au fond du plateau, hors de sa portée directe. Elles ne reçoivent que grâce au maillage.
+export const RADIO_POSITIONS = {
+  emetteur: [15, 80],
+  lampe1: [50, 45], lampe2: [55, 115], lampe3: [60, 80], lampe4: [35, 60],
+  lampe5: [95, 50], lampe6: [100, 110], lampe7: [135, 70], lampe8: [150, 115],
+};
+export function defaultRadio() {
+  return {
+    nodes: Object.fromEntries(Object.entries(RADIO_POSITIONS).map(([id, [x, y]]) => [id, { x, y, range: 60 }])),
+    obstacles: {},
+  };
+}
 
 export function tallyCircuit() {
   const components = [];
@@ -267,7 +320,6 @@ export function tallyCircuit() {
 
   const links = [
     { id: "l_eth", kind: "rj45", a: "atem", b: "emetteur", cut: false, note: "Câble RJ45 direct, protocole ATEM UDP 9910 (ATEM 192.168.10.240, émetteur 192.168.10.50)" },
-    ...Array.from({ length: NB_CAMS }, (_, i) => ({ id: `l_radio_${i + 1}`, kind: "espnow", a: "emetteur", b: `lampe${i + 1}`, cut: false, loss: 0 })),
   ];
-  return { components, wires, links };
+  return { components, wires, links, radio: defaultRadio() };
 }
