@@ -23,6 +23,7 @@ export class Bench {
     this.onChange = onChange; this.onSerial = onSerial; this.onState = onState;
     this.loopPause = loopPause;
     this.runners = new Map();
+    this.devices = new Map();   // appareils réseau (ex. ATEM) : id -> { dev, timer }
     this.states = new Map();
     this.sim = null;
     this.net = new VirtualNetwork({
@@ -34,6 +35,31 @@ export class Bench {
 
   comp(id) { return this.getCircuit().components.find((c) => c.id === id); }
   boards() { return this.getCircuit().components.filter((c) => REGISTRY[c.type]?.programmable); }
+  appliances() { return this.getCircuit().components.filter((c) => REGISTRY[c.type]?.device); }
+
+  // Un appareil réseau tourne en tâche de fond (tick toutes les 5 ms), sans sketch.
+  startDevice(id) {
+    this.stopDevice(id);
+    const c = this.comp(id);
+    const Dev = REGISTRY[c.type].device;
+    this.net.reset(id);
+    const dev = new Dev(c, this.net.port(id), { onChange: () => this.onChange(id), log: (t) => this.onSerial(id, t) });
+    const timer = setInterval(() => { try { dev.tick(); } catch (e) { this.onSerial(id, `Erreur : ${e.message}`); } }, 5);
+    this.devices.set(id, { dev, timer });
+    this.states.set(id, "running");
+    this.onState(id, "running");
+    this.onChange(id);
+  }
+
+  stopDevice(id) {
+    const d = this.devices.get(id);
+    if (!d) return;
+    clearInterval(d.timer);
+    this.devices.delete(id);
+    this.net.reset(id);
+    this.states.set(id, "stopped");
+    this.onState(id, "stopped");
+  }
 
   resimulate() {
     const circuit = this.getCircuit();
@@ -82,6 +108,7 @@ export class Bench {
   start(id) {
     const b = this.comp(id);
     if (!b) return;
+    if (REGISTRY[b.type].device) return this.startDevice(id);
     const r = this.runner(id);
     r.stop();
     this.net.reset(id);
@@ -93,6 +120,7 @@ export class Bench {
   }
 
   stop(id) {
+    if (this.devices.has(id)) return this.stopDevice(id);
     this.runners.get(id)?.stop();
     this.net.reset(id);
     const b = this.comp(id);
@@ -101,9 +129,13 @@ export class Bench {
     this.onChange(id);
   }
 
-  startAll() { for (const b of this.boards()) this.start(b.id); }
+  startAll() {
+    for (const a of this.appliances()) this.startDevice(a.id);
+    for (const b of this.boards()) this.start(b.id);
+  }
 
   stopAll() {
+    for (const id of [...this.devices.keys()]) this.stopDevice(id);
     for (const [id, r] of this.runners) { r.stop(); this.net.reset(id); }
     this.runners.clear();
   }
@@ -111,6 +143,8 @@ export class Bench {
   /** Oublie les cartes qui ne sont plus sur le plan. */
   prune() {
     const ids = new Set(this.boards().map((b) => b.id));
+    const devs = new Set(this.appliances().map((a) => a.id));
+    for (const id of [...this.devices.keys()]) if (!devs.has(id)) this.stopDevice(id);
     for (const [id, r] of this.runners) if (!ids.has(id)) { r.stop(); this.runners.delete(id); this.states.delete(id); this.net.reset(id); }
   }
 

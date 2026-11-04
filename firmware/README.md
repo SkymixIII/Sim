@@ -1,40 +1,52 @@
-# Firmware du tally ATEM 4 lampes
-
-Trois programmes Arduino pour le système décrit dans `tally_atem_4_lampes.csv` :
+# Firmware du tally ATEM 8 caméras
 
 ```
- ATEM 2 M/E Constellation          WT32-ETH01                      4 × ESP32-C3 Super Mini
- (ou émulateur ATEM)  ── RJ45 ──>  émetteur  ── ESP-NOW canal 1 ──> lampes (WS2812B)
- 192.168.10.240                    192.168.10.50   (10 trames/s)    CAM 1, 2, 1, 2
+ ATEM 2 M/E Constellation HD         WT32-ETH01                       8 × ESP32-C3 Super Mini
+ 192.168.10.240        ── RJ45 ──>   émetteur    ── ESP-NOW canal 1 ──>  une lampe par caméra
+ (protocole ATEM, UDP 9910)          192.168.10.50   (10 trames/s)      (WS2812B)
 ```
 
 | Dossier | Carte | Rôle |
 |---|---|---|
-| `emetteur_wt32eth01/` | WT32-ETH01 | Client ATEM sur le RJ45, rediffuse le tally en ESP-NOW. LED statut GPIO2 allumée = pas d'ATEM. |
-| `lampe_esp32c3/` | ESP32-C3 Super Mini | Rouge = programme, vert = preview, orange clignotant = liaison perdue. |
-| `atem_emulateur/` | WT32-ETH01 | Faux mélangeur ATEM à 4 boutons, pour tester sans le vrai. |
+| `emetteur_wt32eth01/` | WT32-ETH01 | Se connecte à l'ATEM par le RJ45, lit son tally et le rediffuse en ESP-NOW. LED statut GPIO2 allumée = pas d'ATEM. |
+| `lampe_esp32c3/` | ESP32-C3 Super Mini | Une seule couleur à la fois, priorité **BLEU > ROUGE > VERT**. |
 
-Le même comportement tourne dans l'Établi : menu **Charger un montage… → Tally ATEM 4 lampes**. Les sketches du simulateur suivent la même logique et échangent les mêmes octets ; seules les entrées/sorties réseau diffèrent (`Rj45.*` / `EspNow.*` au lieu de `WiFiUDP` / `esp_now_*`), parce que le simulateur n'exécute qu'un sous-ensemble d'Arduino.
+Couleurs de la lampe :
+
+| Couleur | Signification |
+|---|---|
+| Bleu fixe | Plus de liaison radio avec l'émetteur (rien reçu depuis 2 s) |
+| Bleu clignotant | L'émetteur répond, mais il n'a plus l'ATEM |
+| Rouge | Caméra au programme (et pendant un AUTO, la caméra entrante) |
+| Vert | Caméra en preview |
+| Éteinte | Caméra hors antenne |
+
+Le même système tourne dans l'Établi (montage **Tally ATEM 8 caméras**). L'ATEM y est modélisé côté réseau, avec son pupitre PGM / PVW / CUT / AUTO. Les sketches du simulateur suivent la même logique et échangent les mêmes octets. Seules les entrées/sorties réseau diffèrent (`Rj45.*` / `EspNow.*` au lieu de `WiFiUDP` / `esp_now_*`).
 
 ## Installation
 
 1. Arduino IDE 2, gestionnaire de cartes : **esp32 by Espressif** (2.x ou 3.x, les deux sont gérés).
-2. Lampes uniquement : bibliothèque **Adafruit NeoPixel** (gestionnaire de bibliothèques).
+2. Lampes uniquement : bibliothèque **Adafruit NeoPixel**.
 3. Réglages de carte :
-   - WT32-ETH01 : « ESP32 Dev Module ». Pour téléverser, il faut un adaptateur USB-série 3,3 V (TX0/RX0) et IO0 relié à GND au démarrage.
-   - ESP32-C3 Super Mini : « ESP32C3 Dev Module », **USB CDC On Boot : Enabled** pour voir le moniteur série.
+   - WT32-ETH01 : « ESP32 Dev Module ». Pour téléverser, il faut un adaptateur USB-série 3,3 V (TX0/RX0), avec IO0 relié à GND au démarrage.
+   - ESP32-C3 Super Mini : « ESP32C3 Dev Module », **USB CDC On Boot : Enabled**.
 
-## Réglages à adapter
+## Réglages
 
-- **Lampe** : `CAM` en haut de `lampe_esp32c3.ino` (1 pour les lampes 1 et 3, 2 pour les lampes 2 et 4), `NB_LEDS` si c'est un anneau ou un ruban, `LUMINOSITE`.
-- **Émetteur** : adresses IP et `CANAL_ESPNOW`. Le canal doit être le même sur les lampes.
-- **Vrai ATEM** : régler son adresse sur 192.168.10.240 / 255.255.255.0 (ATEM Setup), ou changer `IP_ATEM` dans l'émetteur. Le câble RJ45 direct suffit, sans switch.
+- **Lampe** : `CAM` (de 1 à 8) en haut de `lampe_esp32c3.ino`, une valeur différente par lampe. Il est aussi possible de régler `NB_LEDS` (anneau ou ruban) et `LUMINOSITE`.
+- **Émetteur** : les adresses IP et `CANAL_ESPNOW`, qui doit être identique sur les lampes.
+- **ATEM** : 192.168.10.240 / 255.255.255.0 est son adresse par défaut. Sinon, la régler dans ATEM Setup ou changer `IP_ATEM` dans l'émetteur. Le câble RJ45 se branche en direct, sans switch.
 
 ## Protocoles
 
-**ATEM (UDP 9910)**, partie utilisée : poignée de main (paquet `0x10` avec `0x01` → réponse `0x02`), acquittement de chaque paquet marqué « ack demandé » (`0x08`), lecture de la commande `TlIn` (un octet par entrée : bit 0 programme, bit 1 preview). Sans paquet de l'ATEM pendant 2 s, l'émetteur se reconnecte tout seul.
+**ATEM (UDP 9910)** : partie utilisée par l'émetteur.
+- Poignée de main : paquet `0x10` avec `0x01`, réponse `0x02`.
+- L'ATEM attribue ensuite une session et envoie son état initial (`_ver`, `_pin`, `PrgI`, `PrvI`, `TlIn`, `InCm`).
+- L'émetteur acquitte chaque paquet marqué `0x08`. Sans acquittement, l'ATEM renvoie le paquet puis coupe la session.
+- L'émetteur lit `TlIn` : un octet par entrée, bit 0 programme, bit 1 preview.
+- Sans nouvelles de l'ATEM pendant 2 s, l'émetteur se reconnecte.
 
-**Trame ESP-NOW** (14 octets, diffusion à FF:FF:FF:FF:FF:FF) :
+**Trame ESP-NOW** (14 octets, diffusée à FF:FF:FF:FF:FF:FF) :
 
 | Octet | Contenu |
 |---|---|
@@ -43,12 +55,9 @@ Le même comportement tourne dans l'Établi : menu **Charger un montage… → T
 | 3 | numéro de trame |
 | 4 | 1 si l'émetteur est connecté à l'ATEM |
 | 5 | nombre de caméras (8) |
-| 6… | une case par caméra : bit 0 programme, bit 1 preview |
-
-Si l'émetteur perd l'ATEM, il continue d'émettre avec l'octet 4 à 0 : les lampes clignotent en orange au lieu de garder un tally périmé.
+| 6–13 | caméras 1 à 8 : bit 0 programme, bit 1 preview |
 
 ## Écarts avec l'établi
 
-- Sur l'établi, la WS2812B de chaque lampe est remplacée par deux LED (rouge GPIO18, verte GPIO19). Sur l'ESP32-C3 réel, GPIO18/19 sont l'USB : le firmware pilote la WS2812B sur GPIO4 (via 330 Ω).
-- Sur l'émulateur ATEM réel (WT32-ETH01), GPIO18 sert à l'Ethernet : le bouton CAM 2 CUT passe sur **GPIO14**.
-- Les trois sketches ont été vérifiés en syntaxe C++ et leur logique est testée de bout en bout dans le simulateur (`npm test`). Ils n'ont pas encore été compilés avec le core ESP32 ni essayés sur les vraies cartes.
+- Sur l'établi, la WS2812B de chaque lampe est remplacée par 3 LED : rouge sur GPIO18, verte sur GPIO19, bleue sur GPIO21. Sur l'ESP32-C3 réel, GPIO18 et 19 sont l'USB : le firmware pilote donc la WS2812B sur GPIO4, via une résistance de 330 Ω.
+- Le firmware a été vérifié en syntaxe C++, et sa logique est testée de bout en bout dans le simulateur (`npm test`). Il n'a pas encore été compilé avec le core ESP32, ni essayé sur les vraies cartes.

@@ -145,6 +145,24 @@ button:focus-visible, .tab:focus-visible, textarea:focus-visible, input:focus-vi
 #canvas .comp .pin.out.hi { fill: #ff9c3a; }
 #canvas .comp .pin.pwr { fill: #ff6b5f; }
 
+/* Pupitre ATEM (appareil réseau) : couleurs fixes, c'est un objet physique */
+#canvas .comp .atem-body { fill: #24282c; stroke: #3a4046; }
+#canvas .comp .atem-title { fill: #f1f3f4; font: 600 15px var(--font-display); stroke: none; letter-spacing: 0.03em; }
+#canvas .comp .atem-sub { fill: #9aa4ab; font: 500 10.5px var(--font-mono); stroke: none; }
+#canvas .comp .atem-row { fill: #9aa4ab; font: 600 11px var(--font-mono); stroke: none; letter-spacing: 0.08em; }
+#canvas .comp .atem-key { fill: #3b4148; stroke: #555d65; stroke-width: 1; cursor: pointer; }
+#canvas .comp g[data-key]:hover .atem-key { stroke: #c9d1d7; }
+#canvas .comp .atem-key.pgm { fill: #e5332a; stroke: #ff8a80; }
+#canvas .comp .atem-key.pvw { fill: #1fae4b; stroke: #8ff0aa; }
+#canvas .comp .atem-key.auto { fill: #d99a1c; stroke: #ffd27a; }
+#canvas .comp .atem-num { fill: #f1f3f4; font: 600 13px var(--font-mono); text-anchor: middle; stroke: none; pointer-events: none; }
+#canvas .comp .atem-bar { fill: #3b4148; stroke: none; }
+#canvas .comp .atem-bar-fill { fill: #d99a1c; stroke: none; }
+#canvas .comp .atem-rj45 { fill: #c3c8cc; stroke: #6c757d; }
+#canvas .comp .atem-led { fill: #555d65; stroke: none; }
+#canvas .comp .atem-led.up { fill: #4fe07a; }
+#canvas .link-line { stroke-linejoin: round; }
+
 /* Liens virtuels (RJ45, ESP-NOW) : non électriques, tracés en pointillés au-dessus du montage */
 #canvas .link-line { fill: none; stroke-width: 2.4; stroke-linecap: round; pointer-events: none; }
 #canvas .link.rj45 .link-line { stroke: var(--link-rj45); stroke-width: 4; stroke-dasharray: 10 5; }

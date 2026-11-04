@@ -4,7 +4,9 @@
 //  - Se connecte au mélangeur ATEM par le port RJ45 (câble direct, IP fixes),
 //    en parlant le protocole ATEM (UDP 9910) comme ATEM Software Control.
 //  - Lit la commande TlIn (tally par entrée : bit 0 = programme, bit 1 = preview).
-//  - Rediffuse l'état de toutes les caméras en ESP-NOW, 10 fois par seconde.
+//  - Rediffuse l'état des 8 caméras en ESP-NOW, 10 fois par seconde.
+//  - Acquitte chaque paquet de l'ATEM (sinon il les renvoie puis coupe la session)
+//    et se reconnecte seul si l'ATEM ne dit plus rien pendant 2 s.
 //  - LED statut sur GPIO2 : allumée = pas connecté à l'ATEM, éteinte = connecté.
 //
 //  Aucune bibliothèque externe : uniquement le core Arduino ESP32 (2.x ou 3.x).
@@ -30,7 +32,7 @@ static const uint32_t PERIODE_RADIO_MS = 100;          // 10 Hz
 static const uint32_t TIMEOUT_ATEM_MS = 2000;
 static const uint32_t RELANCE_HELLO_MS = 1000;
 static const uint8_t  LED_STATUT = 2;
-static const uint8_t  MAX_CAMS = 8;                    // caméras transmises dans la trame
+static const uint8_t  MAX_CAMS = 8;                    // caméras transmises (entrées 1 à 8 de l'ATEM)
 
 // ---------- WT32-ETH01 : PHY LAN8720 ----------
 static const int ETH_ADDR = 1;
@@ -99,8 +101,8 @@ void lireTally(int p, int fin) {
   }
   if (change) {
     Serial.print("Tally ATEM :");
-    for (int k = 0; k < 4 && k < nb; k++) {
-      Serial.printf(" CAM%d=%s", k + 1, (tally[k] & 1) ? "PGM" : (tally[k] & 2) ? "PVW" : "-");
+    for (int k = 0; k < MAX_CAMS && k < nb; k++) {
+      Serial.printf(" %d:%s", k + 1, (tally[k] & 1) ? "PGM" : (tally[k] & 2) ? "PVW" : "-");
     }
     Serial.println();
   }

@@ -19,17 +19,18 @@ src/
     sources.js         Alimentation DC, piles (Thévenin), source de courant
     semiconductors.js  Diodes (1N4148, 1N4007, 1N5819, Zener 1N4733A), LED
     esp32.js           Carte ESP32-DevKitC : GPIO, pull-ups, diodes de protection, ADC
+    atem.js            Mélangeur ATEM Constellation, côté réseau (protocole UDP 9910)
   runtime/
     arduino.js         Exécute un sketch Arduino (sous-ensemble) sur l'ESP32 simulé
     bench.js           Banc d'essai : un sketch par carte, circuit commun, réseau virtuel
   ui/
     app.js             Plan de travail SVG, palette, mesures, éditeur de code, liens
     example.js         Montage et sketch de démonstration
-    montages/tally.js  Tally ATEM 4 lampes (d'après le CSV), avec ses 6 sketches
+    montages/tally.js  Tally ATEM 8 caméras : ATEM, émetteur et 8 lampes, avec leurs sketches
 firmware/              Firmware Arduino réel des montages (voir firmware/README.md)
 tests/
   datasheet.test.mjs   Chaque modèle confronté aux points de sa fiche technique
-  tally.test.mjs       Les 6 cartes du tally tournent ensemble : boutons, câble, radio, LED
+  tally.test.mjs       Le tally complet tourne : pupitre ATEM, câble, radio, LED ; renvois du protocole ATEM
 docs/
   AJOUTER-UN-COMPOSANT.md   Procédure suivie par Claude pour intégrer un nouveau composant
 ```
@@ -87,6 +88,10 @@ Ce qui n'est pas un fil de cuivre passe par `circuit.links` : `{ id, kind: "rj45
 - **espnow** : diffusion vers toutes les cartes reliées, sur le même canal Wi-Fi, avec une perte réglable (portée).
 
 Dans un sketch : `Rj45.send(buf, n)`, `n = Rj45.receive(buf)`, `Rj45.linkUp()`, `EspNow.begin(canal)`, `EspNow.broadcast(buf, n)`, `n = EspNow.receive(buf)`. Les tableaux sont passés par référence, comme un `uint8_t*`. Sur le plan, un clic sur un lien permet de le débrancher, de le mettre hors de portée ou d'en lire le trafic.
+
+### Appareils réseau
+
+Un composant sans broche qui déclare `device` (une classe avec `tick()`) est un appareil réseau : le banc l'exécute toutes les 5 ms avec son port du réseau virtuel, sans sketch. C'est le cas de l'ATEM (`components/atem.js`) : poignée de main, état initial en plusieurs paquets, renvoi des paquets non acquittés, ping toutes les 500 ms, client oublié après 2,5 s de silence, tally `TlIn` et position de transition `TrPs` pendant un AUTO. Son pupitre est cliquable (`press(inst, down, key)` reçoit la touche via `data-key`).
 
 ## Pile technique et suite
 

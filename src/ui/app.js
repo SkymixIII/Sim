@@ -9,9 +9,9 @@ import { tallyCircuit } from "./montages/tally.js";
 
 const G = 20;          // pixels par pas de grille
 let COLS = 64, ROWS = 40;
-const STORE = "etabli.circuit.v1", STORE_CODE = "etabli.code.v1";
+const STORE = "etabli.circuit.v2", STORE_CODE = "etabli.code.v1";
 const MONTAGES = {
-  tally: { label: "Tally ATEM 4 lampes", build: tallyCircuit },
+  tally: { label: "Tally ATEM 8 caméras", build: tallyCircuit },
   demo: { label: "LED + bouton (démo)", build: exampleCircuit },
 };
 
@@ -157,10 +157,21 @@ function linkGeometry(l) {
     const cy = Math.max(6, Math.min(p.y, q.y) - 70);
     return { d: `M${p.x},${p.y} C${p.x},${cy} ${q.x},${cy} ${q.x},${q.y}`, mid: { x: (p.x + q.x) / 2, y: (p.y + 6 * cy + q.y) / 8 } };
   }
+  // Carte du dessous : tracé orthogonal façon bus, qui contourne les cartes posées entre les deux
+  // en descendant par l'allée à gauche de la carte d'arrivée.
   const [u, ub, v, vb] = a.y < b.y ? [a, ba, b, bb] : [b, bb, a, ba];
   const p = bottom(u, ub), q = top(v, vb);
-  const k = Math.max(40, (q.y - p.y) / 2);
-  return { d: `M${p.x},${p.y} C${p.x},${p.y + k} ${q.x},${q.y - k} ${q.x},${q.y}`, mid: { x: (p.x + q.x) / 2, y: (p.y + q.y) / 2 } };
+  const busY = p.y + 1.5 * G, legY = q.y - 2 * G; // legY : au-dessus du nom de la carte
+  const gx = q.x / G;
+  const blocked = circuit.components.some((c) => {
+    if (c === u || c === v) return false;
+    const bd = REGISTRY[c.type].bounds;
+    const x0 = c.x + bd.x - 0.5, x1 = c.x + bd.x + bd.w + 0.5, y0 = c.y + bd.y, y1 = c.y + bd.y + bd.h + 1.5;
+    return gx >= x0 && gx <= x1 && y1 >= busY / G && y0 <= legY / G;
+  });
+  if (!blocked) return { d: `M${p.x},${p.y} V${busY} H${q.x} V${q.y}`, mid: { x: q.x + 6, y: q.y - 0.5 * G }, anchor: "start" };
+  const ax = (v.x - 1.3) * G;
+  return { d: `M${p.x},${p.y} V${busY} H${ax} V${legY} H${q.x} V${q.y}`, mid: { x: q.x + 6, y: q.y - 0.5 * G }, anchor: "start" };
 }
 
 function linkCaption(l) {
@@ -179,7 +190,7 @@ function renderLinks() {
     const active = now - (activity.get(l.id) ?? -1e9) < 300;
     out += `<g class="link ${l.kind}${l.cut ? " cut" : ""}${isSel ? " sel" : ""}${active ? " active" : ""}" data-link="${l.id}">`
       + `<path class="link-line" d="${g.d}"/><path class="link-hit" d="${g.d}"/>`
-      + `<text class="link-label" x="${g.mid.x}" y="${g.mid.y - 6}" text-anchor="middle">${linkCaption(l)}</text></g>`;
+      + `<text class="link-label" x="${g.mid.x}" y="${g.mid.y - 6}" text-anchor="${g.anchor ?? "middle"}">${linkCaption(l)}</text></g>`;
   }
   return out;
 }
@@ -264,9 +275,9 @@ function lPath(a, b) {
 
 // ---------- Palette ----------
 function partIcon(def) {
-  const scale = def.type === "esp32" ? 0.11 : def.type === "ground" ? 0.6 : 0.5;
-  const tx = def.type === "ground" ? 22 : def.type === "esp32" ? 11 : 2;
-  const ty = def.type === "ground" ? 4 : def.type === "esp32" ? 1 : 12;
+  const scale = def.type === "atem" ? 0.065 : def.type === "esp32" ? 0.11 : def.type === "ground" ? 0.6 : 0.5;
+  const tx = def.type === "ground" ? 22 : def.type === "esp32" ? 11 : 1;
+  const ty = def.type === "ground" ? 4 : def.type === "esp32" ? 1 : def.type === "atem" ? 6 : 12;
   return `<svg viewBox="0 0 44 24" aria-hidden="true"><g transform="translate(${tx},${ty}) scale(${scale})" style="stroke:var(--ink);stroke-width:${2 / scale * 0.6};fill:none">${def.symbol.call(def, { params: defaultParams(def), rt: {} }, undefined).replace(/class="fill"/g, 'style="fill:var(--ink)"').replace(/<text[^>]*>[^<]*<\/text>/g, "")}</g></svg>`;
 }
 
@@ -318,6 +329,7 @@ function placeComponent(type, p) {
   circuit.components.push(comp);
   selection = { kind: "comp", id: comp.id };
   showTab("inspect");
+  if (def.device) bench.start(comp.id);
   if (def.programmable) { comp.code = EXAMPLE_SKETCH; comp.name = `ESP32 ${circuit.components.filter((c) => c.type === type).length}`; codeBoardId = comp.id; renderCodePanel(); bench.start(comp.id); }
 }
 
@@ -358,7 +370,7 @@ svg.addEventListener("pointerdown", (e) => {
     drag = { comp, start: p, origin: { x: comp.x, y: comp.y }, moved: false, t0: performance.now() };
     svg.setPointerCapture(e.pointerId);
     const def = REGISTRY[comp.type];
-    if (def.interactive && def.press(comp, true)) refresh();
+    if (def.interactive && def.press(comp, true, e.target.closest("[data-key]")?.dataset.key)) refresh();
     else { render(); renderInspector(); }
   } else if (wireEl) {
     selection = { kind: "wire", id: wireEl.dataset.wire };
@@ -513,7 +525,7 @@ function renderInspector() {
   if (!comp) { selection = null; return renderInspector(); }
   const def = REGISTRY[comp.type];
   const res = sim?.ok ? sim.comps.get(comp.id) : undefined;
-  const info = res?.info ?? { readings: [], warnings: [] };
+  const info = def.liveInfo ? def.liveInfo(comp) : res?.info ?? { readings: [], warnings: [] };
   const ds = def.datasheet;
   const title = comp.name ? esc(comp.name) : `${def.name}${def.label?.(comp) ? ` · ${esc(def.label(comp))}` : ""}`;
   const sub = comp.name ? `${def.name}${comp.realBoard ? ` · réel : ${esc(comp.realBoard)}` : def.label?.(comp) ? ` · ${esc(def.label(comp))}` : ""}` : "";

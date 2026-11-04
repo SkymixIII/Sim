@@ -11,7 +11,7 @@ npm test                      # vérifie les modèles contre les fiches techniqu
 
 ## Montages fournis
 
-- **Tally ATEM 4 lampes** (par défaut, ou `dev.html#tally`) : émulateur ATEM à 4 boutons, émetteur WT32-ETH01 relié en RJ45, 4 lampes ESP32-C3 en ESP-NOW. Appuyez sur les boutons CAM X PREV / CUT, cliquez un lien pour débrancher le câble ou mettre une lampe hors de portée. Le firmware réel est dans [`firmware/`](firmware/README.md).
+- **Tally ATEM 8 caméras** (par défaut, ou `dev.html#tally`) : un ATEM 2 M/E Constellation HD modélisé côté réseau, avec son pupitre PGM/PVW/CUT/AUTO, est relié en RJ45 à l'émetteur WT32-ETH01, qui diffuse en ESP-NOW à 8 lampes ESP32-C3 (une par caméra, priorité bleu > rouge > vert). Cliquez sur un lien pour débrancher le câble ou mettre une lampe hors de portée. Le firmware réel est dans [`firmware/`](firmware/README.md).
 - **LED + bouton** (`dev.html#demo`) : la démo d'origine.
 
 ## Documentation
