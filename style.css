@@ -238,6 +238,10 @@ button:focus-visible, .tab:focus-visible, textarea:focus-visible, input:focus-vi
 .radio-map .radio-node { cursor: grab; }
 .radio-map .radio-node circle { fill: var(--panel); stroke: var(--ink); stroke-width: 1.6; }
 .radio-map .radio-node circle.tx { stroke: var(--link-rj45); stroke-width: 3; }
+.radio-map .radio-node rect.ant { fill: var(--panel); stroke: var(--ink); stroke-width: 1.6; }
+.radio-map .radio-node rect.ant.flash { stroke: #ff8a10; stroke-width: 4; }
+.radio-map .radio-node.sel rect.ant { stroke: var(--sel); stroke-width: 3; }
+.radio-map .radio-node.off rect.ant { opacity: 0.4; }
 .radio-map .radio-node.sel circle { stroke: var(--sel); stroke-width: 3; }
 .radio-map .radio-node.off circle { opacity: 0.4; }
 .radio-map .radio-node text { font: 600 10px var(--font-mono); fill: var(--ink); text-anchor: middle; stroke: var(--bg); stroke-width: 3; paint-order: stroke; }

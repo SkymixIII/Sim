@@ -26,7 +26,7 @@ src/
   ui/
     app.js             Plan de travail SVG, palette, mesures, éditeur de code, liens
     example.js         Montage et sketch de démonstration
-    montages/tally.js  Tally ATEM 8 caméras : ATEM, émetteur et 8 lampes, avec leurs sketches
+    montages/tally.js  Tally ATEM 8 caméras : ATEM, émetteur, 8 lampes et 2 antennes relais, avec leurs sketches
 firmware/              Firmware Arduino réel des montages (voir firmware/README.md)
 tests/
   datasheet.test.mjs   Chaque modèle confronté aux points de sa fiche technique

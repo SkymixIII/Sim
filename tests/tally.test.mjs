@@ -81,7 +81,7 @@ test("tally 8 caméras : PGM rouge, PVW vert, CUT, AUTO, priorité bleu > rouge 
     // Lampe 3 emportée loin de tout le monde : bleu seul, même au programme (bleu > rouge)
     await t.key("pgm3", 100);
     const n3 = t.circuit.radio.nodes.lampe3, pos = { x: n3.x, y: n3.y };
-    Object.assign(n3, { x: 170, y: 0 });
+    Object.assign(n3, { x: 0, y: 140 });
     await sleep(2400);
     assert.deepEqual(t.lampe(3), BLUE, "bleu fixe sans trame");
     assert.deepEqual(t.lampe(7), GREEN, "les autres lampes restent à jour");
@@ -175,4 +175,35 @@ test("ATEM : renvoie les paquets non acquittés puis oublie le client muet", () 
   // Plus rien du client : il est oublié après 2,5 s.
   for (now = 300; now < 3000; now += 100) srv.tick();
   assert.equal(inst.rt.clients, 0);
+});
+
+test("antennes : relaient vers les lampes 7 et 8, LED orange à chaque émission", { timeout: 15000 }, async () => {
+  const t = setup();
+  t.bench.startAll();
+  try {
+    await sleep(2000);
+    assert.deepEqual(t.errors, []);
+    await t.key("pvw7");
+    assert.deepEqual(t.lampe(7), GREEN, "lampe 7 à jour via l'antenne 1");
+    assert.equal(t.bench.net.heard.get("lampe7")?.from, "antenne1");
+    assert.equal(t.bench.net.heard.get("lampe8")?.from, "antenne2");
+    assert.equal(t.ledOn("antenne1_led_bleu"), false, "antenne reliée : bleu éteint");
+    // La LED orange clignote : on la voit s'allumer et s'éteindre
+    const seen = new Set();
+    for (let i = 0; i < 60; i++) { seen.add(t.ledOn("antenne1_led_orange")); await sleep(10); }
+    assert.equal(seen.size, 2, "LED orange qui flashe à chaque relais");
+    assert.ok(t.serial.some((l) => l.startsWith("[antenne1] Trame reçue en")));
+    // Antenne 1 arrêtée : la lampe 7 perd le tally (bleu)
+    t.bench.stop("antenne1");
+    await sleep(2400);
+    assert.deepEqual(t.lampe(7), BLUE, "sans l'antenne, la lampe 7 est isolée");
+    assert.deepEqual(t.lampe(8), OFF, "la lampe 8 reste servie par l'antenne 2");
+    // Antenne 2 isolée : sa LED bleue s'allume
+    Object.assign(t.circuit.radio.nodes.antenne2, { x: 0, y: 140 });
+    await sleep(2400);
+    assert.equal(t.ledOn("antenne2_led_bleu"), true, "antenne sans trame : bleu fixe");
+    assert.equal(t.ledOn("antenne2_led_orange"), false, "plus rien à relayer");
+  } finally {
+    t.bench.stopAll();
+  }
 });

@@ -9,7 +9,7 @@ import { tallyCircuit } from "./montages/tally.js";
 
 const G = 20;          // pixels par pas de grille
 let COLS = 64, ROWS = 40;
-const STORE = "etabli.circuit.v3", STORE_CODE = "etabli.code.v1";
+const STORE = "etabli.circuit.v4", STORE_CODE = "etabli.code.v1";
 const MONTAGES = {
   tally: { label: "Tally ATEM 8 caméras", build: tallyCircuit },
   demo: { label: "LED + bouton (démo)", build: exampleCircuit },
@@ -689,9 +689,13 @@ function renderRadio({ mapOnly = false } = {}) {
     const isTx = id === "emetteur" || /émetteur/i.test(c?.name ?? "");
     const off = bench.state(id) !== "running";
     const led = ledColorOf(id);
+    const isAnt = id.startsWith("antenne");
+    const flash = isAnt && sim?.ok && (sim.comps.get(id + "_led_orange")?.avg.I ?? 0) > 0.002;
+    const shape = isAnt
+      ? `<rect x="-9" y="-9" width="18" height="18" transform="rotate(45)" class="ant${flash ? " flash" : ""}" style="${led ? `fill:${led}` : ""}"/>`
+      : `<circle r="${isTx ? 11 : 9}" class="${isTx ? "tx" : ""}" style="${led ? `fill:${led}` : ""}"/>`;
     g += `<g class="radio-node${sel ? " sel" : ""}${off ? " off" : ""}" data-node="${id}" transform="translate(${x},${y})">`
-      + `<circle r="${isTx ? 11 : 9}" class="${isTx ? "tx" : ""}" style="${led ? `fill:${led}` : ""}"/>`
-      + `<text y="${isTx ? 25 : 22}">${esc((c?.name ?? id).replace("Lampe ", ""))}</text></g>`;
+      + shape + `<text y="${isTx || isAnt ? 25 : 22}">${esc((c?.name ?? id).replace("Lampe ", ""))}</text></g>`;
   }
   $("radio-map").innerHTML = `<defs><marker id="radio-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="radio-arrowhead"/></marker></defs>` + g;
   if (!mapOnly) renderRadioInspector();

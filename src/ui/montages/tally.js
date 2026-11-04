@@ -15,7 +15,7 @@ const int PERIODE_RADIO_MS = 100;     // 10 Hz
 const int TIMEOUT_ATEM_MS = 2000;
 const int RELANCE_HELLO_MS = 1000;
 const int MAX_CAMS = 8;
-const int TTL_MAX = 4;                // nombre maximal de relais (sauts) dans le maillage
+const int TTL_MAX = 6;                // nombre maximal de relais (sauts) dans le maillage
 
 const int F_ACK_DEMANDE = 0x08;
 const int F_HELLO = 0x10;
@@ -254,20 +254,126 @@ void loop() {
 }
 `;
 
+export const SKETCH_ANTENNE = `// Antenne relais du maillage ESP-NOW (pas de caméra).
+// Elle rediffuse chaque trame tally nouvelle, comme les lampes, pour couvrir plus loin.
+//   LED bleue  : comme sur les lampes (fixe = plus de trame, clignotante = émetteur sans ATEM)
+//   LED orange : flash à chaque trame retransmise
+// Version établi de firmware/antenne_esp32/antenne_esp32.ino.
+
+const int LED_ORANGE = 18;
+const int LED_BLEUE = 19;
+const int CANAL_ESPNOW = 1;
+const int TIMEOUT_MS = 2000;
+const int FLASH_MS = 40;
+
+uint8_t rx[64];
+uint8_t relais[16];
+bool relaisEnAttente = false;
+unsigned long relaisA = 0;
+unsigned long dernierMessage = 0;
+unsigned long flashJusqua = 0;
+bool dejaRecu = false;
+int dernierSeq = 0;
+int atemOk = 0;
+int sauts = -1;
+unsigned long relayees = 0;
+unsigned long dernierBilan = 0;
+int actuel[2] = {-1, -1};
+int etatAvant = -1;
+
+void ecrire(int o, int b) {
+  if (o != actuel[0]) { digitalWrite(LED_ORANGE, o); actuel[0] = o; }
+  if (b != actuel[1]) { digitalWrite(LED_BLEUE, b); actuel[1] = b; }
+}
+
+bool estNouvelle(int seq) {
+  if (!dejaRecu || millis() - dernierMessage > 1000) return true;
+  int d = (seq - dernierSeq) & 0xFF;
+  return d > 0 && d < 128;
+}
+
+void traiter(int n) {
+  if (n < 16 || rx[0] != 0x54 || rx[1] != 0x4C || rx[2] != 2) return;
+  if (!estNouvelle(rx[3])) return;
+  dernierSeq = rx[3];
+  dernierMessage = millis();
+  dejaRecu = true;
+  atemOk = rx[4];
+  if (rx[7] + 1 != sauts) {
+    sauts = rx[7] + 1;
+    Serial.println("Trame reçue en " + String(sauts) + " saut(s)");
+  }
+  if (rx[6] > 1) {
+    for (int i = 0; i < 16; i++) relais[i] = rx[i];
+    relais[6] = rx[6] - 1;
+    relais[7] = rx[7] + 1;
+    relaisEnAttente = true;
+    relaisA = millis() + random(2, 15);
+  }
+}
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(LED_ORANGE, OUTPUT);
+  pinMode(LED_BLEUE, OUTPUT);
+  EspNow.begin(CANAL_ESPNOW);
+  Serial.println("Antenne prête, canal " + String(CANAL_ESPNOW));
+}
+
+void loop() {
+  int n = EspNow.receive(rx);
+  while (n > 0) {
+    traiter(n);
+    n = EspNow.receive(rx);
+  }
+  if (relaisEnAttente && millis() >= relaisA) {
+    EspNow.broadcast(relais, 16);
+    relaisEnAttente = false;
+    relayees++;
+    flashJusqua = millis() + FLASH_MS;      // la LED orange signale l'émission
+  }
+  if (millis() - dernierBilan >= 5000) {
+    if (relayees > 0) Serial.println(String(relayees) + " trames relayées en 5 s");
+    relayees = 0;
+    dernierBilan = millis();
+  }
+  // 0 : plus de trame, 1 : ATEM perdu, 2 : tout va bien
+  int etat = 2;
+  if (!dejaRecu || millis() - dernierMessage > TIMEOUT_MS) etat = 0;
+  else if (atemOk == 0) etat = 1;
+  if (etat != etatAvant) {
+    if (etat == 0) { Serial.println("Plus de trame tally : bleu"); sauts = -1; }
+    if (etat == 1) Serial.println("Émetteur sans ATEM : bleu clignotant");
+    if (etat == 2) Serial.println("Liaison OK");
+    etatAvant = etat;
+  }
+  int bleu = LOW;
+  if (etat == 0) bleu = HIGH;
+  if (etat == 1 && (millis() % 1000) < 500) bleu = HIGH;
+  ecrire(millis() < flashJusqua ? HIGH : LOW, bleu);
+  delay(2);
+}
+`;
+
 export const NB_CAMS = 8;
+export const NB_ANTENNES = 2;
 const LAMPE_X = [2, 26, 50, 74];
 const LAMPE_Y = [18, 35];
 
 // Carte radio par défaut (mètres) : les lampes 1 à 4 sont près de l'émetteur, les lampes 5 à 8
 // au fond du plateau, hors de sa portée directe. Elles ne reçoivent que grâce au maillage.
+// Les lampes 7 et 8, tout au fond, ne sont couvertes que par les antennes (portée 90 m,
+// antenne externe), elles-mêmes relayées par les lampes 5 et 6.
 export const RADIO_POSITIONS = {
   emetteur: [15, 80],
   lampe1: [50, 45], lampe2: [55, 115], lampe3: [60, 80], lampe4: [35, 60],
-  lampe5: [95, 50], lampe6: [100, 110], lampe7: [135, 70], lampe8: [150, 115],
+  lampe5: [95, 50], lampe6: [100, 110], lampe7: [150, 20], lampe8: [160, 125],
+  antenne1: [120, 60], antenne2: [130, 110],
 };
+export const ANTENNE_PORTEE = 90;
 export function defaultRadio() {
   return {
-    nodes: Object.fromEntries(Object.entries(RADIO_POSITIONS).map(([id, [x, y]]) => [id, { x, y, range: 60 }])),
+    nodes: Object.fromEntries(Object.entries(RADIO_POSITIONS).map(([id, [x, y]]) => [id, { x, y, range: id.startsWith("antenne") ? ANTENNE_PORTEE : 60 }])),
     obstacles: {},
   };
 }
@@ -321,5 +427,21 @@ export function tallyCircuit() {
   const links = [
     { id: "l_eth", kind: "rj45", a: "atem", b: "emetteur", cut: false, note: "Câble RJ45 direct, protocole ATEM UDP 9910 (ATEM 192.168.10.240, émetteur 192.168.10.50)" },
   ];
+  // --- Antennes relais (ESP32 à antenne externe) : LED orange (émission) et bleue (liaison) ---
+  for (let k = 1; k <= NB_ANTENNES; k++) {
+    const lx = LAMPE_X[k - 1], ly = 52, id = `antenne${k}`;
+    comp(id, "esp32", lx, ly, { drive: 2 }, { name: `Antenne ${k}`, realBoard: "ESP32-32U + antenne", code: SKETCH_ANTENNE });
+    comp(`${id}_r_orange`, "resistor", lx + 12, ly + 2, { R: 150, Pmax: 0.25 });
+    comp(`${id}_led_orange`, "led", lx + 16, ly + 2, { color: "orange" }, { name: "Émission" });
+    comp(`${id}_r_bleu`, "resistor", lx + 12, ly + 6, { R: 33, Pmax: 0.25 });
+    comp(`${id}_led_bleu`, "led", lx + 16, ly + 6, { color: "blue" }, { name: "Liaison perdue" });
+    comp(`${id}_gnd`, "ground", lx + 21, ly + 10);
+    path([lx + 10, ly + 5], [lx + 11, ly + 5], [lx + 11, ly + 2], [lx + 12, ly + 2]);  // GPIO18 -> orange
+    path([lx + 10, ly + 6], [lx + 12, ly + 6]);                                      // GPIO19 -> bleue
+    path([lx + 20, ly + 2], [lx + 21, ly + 2], [lx + 21, ly + 10]);
+    path([lx + 20, ly + 6], [lx + 21, ly + 6]);
+    path([lx + 10, ly + 9], [lx + 10, ly + 10], [lx + 21, ly + 10]);
+  }
+
   return { components, wires, links, radio: defaultRadio() };
 }

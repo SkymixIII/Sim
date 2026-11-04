@@ -33,7 +33,7 @@ static const uint32_t TIMEOUT_ATEM_MS = 2000;
 static const uint32_t RELANCE_HELLO_MS = 1000;
 static const uint8_t  LED_STATUT = 2;
 static const uint8_t  MAX_CAMS = 8;                    // caméras transmises (entrées 1 à 8 de l'ATEM)
-static const uint8_t  TTL_MAX = 4;                     // relais maximum dans le maillage des lampes
+static const uint8_t  TTL_MAX = 6;                     // relais maximum dans le maillage (lampes et antennes)
 
 // ---------- WT32-ETH01 : PHY LAN8720 ----------
 static const int ETH_ADDR = 1;
