@@ -12,6 +12,7 @@ src/
     devices.js         Briques physiques : jonction PN, Thévenin, ajustement Is depuis VF
     circuit.js         Schéma -> netlist, masse, PWM moyenné, détection de casse
     units.js           Formatage SI (4k7, 220 Ω, 5,84 mA)
+    network.js         Liens virtuels entre cartes : RJ45 (UDP) et radio ESP-NOW
   components/          Un fichier par famille de composants (le "plugin")
     index.js           Registre : la liste des composants disponibles
     passives.js        Masse, résistance, potentiomètre, interrupteur, bouton
@@ -20,11 +21,15 @@ src/
     esp32.js           Carte ESP32-DevKitC : GPIO, pull-ups, diodes de protection, ADC
   runtime/
     arduino.js         Exécute un sketch Arduino (sous-ensemble) sur l'ESP32 simulé
+    bench.js           Banc d'essai : un sketch par carte, circuit commun, réseau virtuel
   ui/
-    app.js             Plan de travail SVG, palette, mesures, éditeur de code
+    app.js             Plan de travail SVG, palette, mesures, éditeur de code, liens
     example.js         Montage et sketch de démonstration
+    montages/tally.js  Tally ATEM 4 lampes (d'après le CSV), avec ses 6 sketches
+firmware/              Firmware Arduino réel des montages (voir firmware/README.md)
 tests/
   datasheet.test.mjs   Chaque modèle confronté aux points de sa fiche technique
+  tally.test.mjs       Les 6 cartes du tally tournent ensemble : boutons, câble, radio, LED
 docs/
   AJOUTER-UN-COMPOSANT.md   Procédure suivie par Claude pour intégrer un nouveau composant
 ```
@@ -71,6 +76,17 @@ Le modèle électrique suit le tableau *DC Characteristics* de la fiche Espressi
 - états après reset des broches de strapping (GPIO2 en pull-down, GPIO5 en pull-up).
 
 Le code est un **sous-ensemble d'Arduino** converti en JavaScript asynchrone (`delay()` rend la main au navigateur). Ce n'est pas une émulation du processeur Xtensa : le timing est celui du navigateur, et les bibliothèques C++ ne sont pas disponibles. Une étape ultérieure pourra brancher un vrai émulateur de jeu d'instructions (QEMU-ESP32 compilé en WebAssembly) sur la même interface `setPin / read`.
+
+## Plusieurs cartes et liens virtuels
+
+Chaque composant programmable porte son propre code (`code`), un nom (`name`) et, s'il représente une autre carte réelle, `realBoard` (ex. WT32-ETH01) : le modèle électrique reste celui de la DevKitC, le nom réel est affiché sur la carte. `runtime/bench.js` lance un `SketchRunner` par carte ; toutes partagent la même simulation électrique.
+
+Ce qui n'est pas un fil de cuivre passe par `circuit.links` : `{ id, kind: "rj45" | "espnow", a, b, cut, loss }`. `engine/network.js` livre les octets :
+
+- **rj45** : point à point, sans perte, monté si le câble est branché et que les deux cartes tournent.
+- **espnow** : diffusion vers toutes les cartes reliées, sur le même canal Wi-Fi, avec une perte réglable (portée).
+
+Dans un sketch : `Rj45.send(buf, n)`, `n = Rj45.receive(buf)`, `Rj45.linkUp()`, `EspNow.begin(canal)`, `EspNow.broadcast(buf, n)`, `n = EspNow.receive(buf)`. Les tableaux sont passés par référence, comme un `uint8_t*`. Sur le plan, un clic sur un lien permet de le débrancher, de le mettre hors de portée ou d'en lire le trafic.
 
 ## Pile technique et suite
 

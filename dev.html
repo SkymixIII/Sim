@@ -22,8 +22,14 @@
       <button id="act-delete" title="Supprimer la sélection (Suppr)">Supprimer</button>
       <button id="act-repair" title="Remplacer les composants détruits">Réparer</button>
       <span class="sep"></span>
-      <button id="act-reset" class="ghost" title="Recharger le montage d'exemple">Exemple</button>
+      <select id="act-montage" class="montage" title="Remplacer le plan de travail par un montage prêt à l'emploi" aria-label="Charger un montage"></select>
       <button id="act-clear" class="ghost" title="Vider le plan de travail">Vider</button>
+      <span class="sep"></span>
+      <span class="zoom" role="group" aria-label="Zoom">
+        <button id="zoom-out" title="Dézoomer" aria-label="Dézoomer">−</button>
+        <button id="zoom-fit" title="Ajuster le montage à l'écran"><span id="zoom-level">100 %</span></button>
+        <button id="zoom-in" title="Zoomer" aria-label="Zoomer">+</button>
+      </span>
     </div>
   </header>
 
@@ -47,10 +53,14 @@
   <aside class="side">
     <div class="tabs" role="tablist">
       <button role="tab" id="tab-inspect" class="tab active" aria-selected="true">Mesures</button>
-      <button role="tab" id="tab-code" class="tab" aria-selected="false">Code ESP32</button>
+      <button role="tab" id="tab-code" class="tab" aria-selected="false">Code des cartes</button>
     </div>
     <section id="panel-inspect" class="panel"></section>
     <section id="panel-code" class="panel" hidden>
+      <div class="code-board-row">
+        <select id="code-board" aria-label="Carte à programmer"></select>
+        <button id="run-all" class="ghost small" title="Redémarrer toutes les cartes avec leur code">Tout relancer</button>
+      </div>
       <div class="code-head">
         <span id="run-state" class="pill">arrêté</span>
         <div class="code-actions">
@@ -61,7 +71,7 @@
       <textarea id="code" spellcheck="false" aria-label="Sketch Arduino"></textarea>
       <div class="serial-head"><h3>Moniteur série · 115200 bauds</h3><button id="serial-clear" class="ghost small">Effacer</button></div>
       <pre id="serial" class="serial" aria-live="polite"></pre>
-      <p class="hint">Sous-ensemble Arduino : pinMode, digitalWrite/Read, analogWrite (PWM moyenné), analogRead, delay, millis, Serial. Les fonctions C++ avancées (classes, pointeurs, bibliothèques) ne sont pas encore prises en charge.</p>
+      <p class="hint">Chaque carte a son propre code. Sous-ensemble Arduino : pinMode, digitalWrite/Read, analogWrite (PWM moyenné), analogRead, delay, millis, Serial, tableaux d'octets. Liens virtuels : <code>Rj45.send(buf, n)</code>, <code>Rj45.receive(buf)</code>, <code>EspNow.begin(canal)</code>, <code>EspNow.broadcast(buf, n)</code>, <code>EspNow.receive(buf)</code>. Les classes, pointeurs et bibliothèques C++ ne sont pas pris en charge : le firmware réel est dans le dossier <code>firmware/</code>.</p>
     </section>
   </aside>
 </div>

@@ -20,6 +20,8 @@
   --warn-soft: #e0a8001f;
   --ok: #23804f;
   --sel: #2a6fdb;
+  --link-rj45: #6b4fa0;
+  --link-radio: #1f7fa8;
   --font-ui: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-display: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
@@ -29,6 +31,7 @@
     --bg: #0c1714; --panel: #11201b; --panel-2: #152721; --ink: #e4eee8; --muted: #8ea29a; --line: #22362f; --grid: #24392f;
     --copper: #e38a4a; --copper-soft: #e38a4a26; --trace-lo: #7d978d; --trace-hi: #ffad5e; --board: #173c31; --board-ink: #e9f2ec;
     --danger: #ff6b5f; --danger-soft: #ff6b5f1f; --warn: #f0be3c; --warn-soft: #f0be3c1c; --ok: #4fc483; --sel: #6aa5ff;
+    --link-rj45: #b9a0ec; --link-radio: #5cc4ee;
     color-scheme: dark;
   }
 }
@@ -36,6 +39,7 @@
   --bg: #0c1714; --panel: #11201b; --panel-2: #152721; --ink: #e4eee8; --muted: #8ea29a; --line: #22362f; --grid: #24392f;
   --copper: #e38a4a; --copper-soft: #e38a4a26; --trace-lo: #7d978d; --trace-hi: #ffad5e; --board: #173c31; --board-ink: #e9f2ec;
   --danger: #ff6b5f; --danger-soft: #ff6b5f1f; --warn: #f0be3c; --warn-soft: #f0be3c1c; --ok: #4fc483; --sel: #6aa5ff;
+  --link-rj45: #b9a0ec; --link-radio: #5cc4ee;
   color-scheme: dark;
 }
 
@@ -141,6 +145,20 @@ button:focus-visible, .tab:focus-visible, textarea:focus-visible, input:focus-vi
 #canvas .comp .pin.out.hi { fill: #ff9c3a; }
 #canvas .comp .pin.pwr { fill: #ff6b5f; }
 
+/* Liens virtuels (RJ45, ESP-NOW) : non électriques, tracés en pointillés au-dessus du montage */
+#canvas .link-line { fill: none; stroke-width: 2.4; stroke-linecap: round; pointer-events: none; }
+#canvas .link.rj45 .link-line { stroke: var(--link-rj45); stroke-width: 4; stroke-dasharray: 10 5; }
+#canvas .link.espnow .link-line { stroke: var(--link-radio); stroke-dasharray: 3 6; }
+#canvas .link.active .link-line { animation: link-flow 0.6s linear infinite; }
+#canvas .link.cut .link-line { stroke: var(--danger); stroke-dasharray: 2 10; opacity: 0.7; animation: none; }
+#canvas .link.sel .link-line { stroke: var(--sel); }
+#canvas .link-hit { fill: none; stroke: transparent; stroke-width: 14; cursor: pointer; }
+#canvas .link-label { font: 600 11px var(--font-mono); fill: var(--muted); stroke: var(--bg); stroke-width: 4; paint-order: stroke; pointer-events: none; }
+#canvas .link.rj45 .link-label { fill: var(--link-rj45); }
+#canvas .link.espnow .link-label { fill: var(--link-radio); }
+#canvas .link.cut .link-label { fill: var(--danger); }
+@keyframes link-flow { to { stroke-dashoffset: -18; } }
+
 .tip {
   position: absolute; pointer-events: none; z-index: 5;
   background: var(--ink); color: var(--panel); font: 500 12px var(--font-mono); padding: 4px 7px; border-radius: 4px; white-space: nowrap;
@@ -184,6 +202,19 @@ button:focus-visible, .tab:focus-visible, textarea:focus-visible, input:focus-vi
 .datasheet ul { margin: 6px 0 0; padding-left: 18px; }
 .row { display: flex; gap: 8px; flex-wrap: wrap; }
 
+.zoom { display: inline-flex; gap: 2px; }
+.zoom #zoom-fit { min-width: 64px; font-variant-numeric: tabular-nums; }
+.code-board-row { display: flex; gap: 8px; align-items: center; }
+.code-board-row select, .add-link select, .tools select.montage {
+  font: 500 13px var(--font-ui); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 5px; padding: 6px 8px; min-width: 0;
+}
+.code-board-row select { flex: 1; }
+.add-link select { flex: 1; }
+.tools select.montage { background: var(--panel); cursor: pointer; }
+.links td { vertical-align: middle; }
+.links td:last-child { text-align: right; }
+.linkish { border: 0 !important; background: none !important; padding: 0 !important; color: var(--ink); text-decoration: underline; text-decoration-color: var(--line); cursor: pointer; font: 500 13px var(--font-mono); }
+.hint code { font: 11.5px var(--font-mono); }
 .code-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .code-actions { display: flex; gap: 6px; }
 .pill { font: 500 11.5px var(--font-mono); padding: 3px 8px; border-radius: 99px; background: var(--panel-2); border: 1px solid var(--line); color: var(--muted); }
