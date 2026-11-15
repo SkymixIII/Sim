@@ -1,6 +1,6 @@
 // Du schéma (composants placés + fils) à la netlist, puis simulation complète :
 // connexions, masse, composants détruits, PWM moyenné, diagnostics.
-import { solveDC } from "./solver.js";
+import { prepare, solveSettled } from "./solver.js";
 import { OPEN_G } from "./devices.js";
 import { REGISTRY } from "../components/index.js";
 
@@ -50,6 +50,13 @@ export function buildNetlist(circuit) {
       if (o === w) continue;
       if (onSegment(w.x1, w.y1, o)) union(key(w.x1, w.y1), key(o.x1, o.y1));
       if (onSegment(w.x2, w.y2, o)) union(key(w.x2, w.y2), key(o.x1, o.y1));
+    }
+  }
+
+  // Une broche posée sur un fil (pas seulement à son extrémité) y est connectée.
+  for (const ps of pins.values()) {
+    for (const p of ps) {
+      for (const w of circuit.wires) if (onSegment(p.x, p.y, w)) union(key(p.x, p.y), key(w.x1, w.y1));
     }
   }
 
@@ -127,17 +134,35 @@ function pwmPhases(circuit) {
   return phases;
 }
 
+/** Mesures lisibles, alertes et casse de chaque composant à partir des moyennes et des extrêmes. */
+export function describeAll(net, avgOf, peakOf) {
+  const comps = new Map();
+  let newlyDamaged = false;
+  net.elements.forEach((el, j) => {
+    const c = el.inst;
+    const def = REGISTRY[c.type];
+    const info = c.damaged ? { readings: [["État", "détruit"]], warnings: [{ level: "danger", text: c.damaged }] } : def.describe(c, avgOf[j], peakOf[j]);
+    if (info.damage && !c.damaged) { c.damaged = info.damage; newlyDamaged = true; }
+    comps.set(c.id, { avg: avgOf[j], peak: peakOf[j], info });
+  });
+  return { comps, newlyDamaged };
+}
+
 const warmStart = new Map();
 
-/** Simule le circuit. Modifie `damaged` des composants qui viennent d'être détruits. */
+/**
+ * Point de fonctionnement continu du circuit (PWM moyenné). Modifie `damaged` des composants
+ * qui viennent d'être détruits. Pour l'évolution dans le temps, voir transient.js.
+ */
 export function simulate(circuit, opts = {}) {
   for (let pass = 0; pass < 6; pass++) {
     const net = buildNetlist(circuit);
+    const prep = prepare(net.nodeCount, net.elements);
     const phases = pwmPhases(circuit);
     const runs = [];
     for (let i = 0; i < phases.length; i++) {
       phases[i].apply();
-      const r = solveDC(net.nodeCount, net.elements, { tempC: opts.tempC, initial: warmStart.get(i) });
+      const r = solveSettled(prep, { tempC: opts.tempC, initial: warmStart.get(i) });
       if (!r.ok) { warmStart.clear(); return { ok: false, error: r.error, net }; }
       warmStart.set(i, r.solution);
       runs.push({ w: phases[i].weight, r });
@@ -157,16 +182,7 @@ export function simulate(circuit, opts = {}) {
     });
     const nodeV = new Map();
     for (const [k, n] of net.nodeByKey) nodeV.set(k, runs.reduce((s, { w, r }) => s + w * r.v(n), 0));
-
-    const comps = new Map();
-    let newlyDamaged = false;
-    net.elements.forEach((el, j) => {
-      const c = el.inst;
-      const def = REGISTRY[c.type];
-      const info = c.damaged ? { readings: [["État", "détruit"]], warnings: [{ level: "danger", text: c.damaged }] } : def.describe(c, avgOf[j], peakOf[j]);
-      if (info.damage && !c.damaged) { c.damaged = info.damage; newlyDamaged = true; }
-      comps.set(c.id, { avg: avgOf[j], peak: peakOf[j], info });
-    });
+    const { comps, newlyDamaged } = describeAll(net, avgOf, peakOf);
     if (!newlyDamaged) return { ok: true, net, nodeV, comps };
   }
   return { ok: false, error: "Trop de composants détruits en cascade." };

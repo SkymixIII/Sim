@@ -2,6 +2,7 @@
 // Valeurs : Espressif « ESP32 Series Datasheet », tableau DC Characteristics (3,3 V, 25 °C),
 // et documentation ESP-IDF (GPIO drive capability).
 import { fmt } from "../engine/units.js";
+import { nextEdge } from "./instruments.js";
 import { stampThevenin, stampJunctionToRail, junctionIG } from "../engine/devices.js";
 
 const VDD = 3.3;
@@ -44,18 +45,25 @@ export function pinState(inst, gpio) {
   return inst.rt?.pins?.[gpio] ?? { mode: g?.reset ?? "INPUT", level: 0 };
 }
 
-function outputLevel(inst, gpio, st) {
-  if (st.mode === "PWM") return inst.rt?.pwmPhase?.[gpio] ?? (st.duty >= 0.5 ? 1 : 0);
+export const PWM_FREQ = 1000; // analogWrite() sur ESP32 (Arduino core) : LEDC à 1 kHz par défaut
+
+// En analyse temporelle (t défini), la PWM est un vrai signal rectangulaire ; en continu, la phase
+// est imposée par le moteur (circuit.js) qui moyenne ensuite les deux états.
+function outputLevel(inst, gpio, st, t) {
+  if (st.mode === "PWM") {
+    if (t !== undefined) { const x = t * (st.freq ?? PWM_FREQ); return x - Math.floor(x) < st.duty ? 1 : 0; }
+    return inst.rt?.pwmPhase?.[gpio] ?? (st.duty >= 0.5 ? 1 : 0);
+  }
   return st.level;
 }
 
 // Courant entrant dans la puce par la broche, pour une tension de broche v (référencée à GND).
-function chipCurrent(inst, g, v, tempC) {
+function chipCurrent(inst, g, v, tempC, t) {
   const st = pinState(inst, g.gpio);
   const d = inst.params.drive;
   let I = v * G_LEAK;
   if (st.mode === "OUTPUT" || st.mode === "PWM") {
-    I += outputLevel(inst, g.gpio, st) ? (v - VDD) / rHigh(d) : v / rLow(d);
+    I += outputLevel(inst, g.gpio, st, t) ? (v - VDD) / rHigh(d) : v / rLow(d);
   } else if (st.mode === "INPUT_PULLUP") I += (v - VDD) / R_PULL;
   else if (st.mode === "INPUT_PULLDOWN") I += v / R_PULL;
   I += junctionIG(v - VDD, CLAMP, tempC).I - junctionIG(-v, CLAMP, tempC).I;
@@ -81,6 +89,7 @@ export const esp32 = {
       "Sortie : VOH ≥ 0,8·VDD au courant nominal de la drive strength, VOL ≤ 0,495 V. Modèle de Thévenin calé sur ces deux points.",
       "Pull-up / pull-down internes : 45 kΩ typ. GPIO34 à 39 : entrées seules, sans pull.",
       "Tension max sur une broche : VDD + 0,3 V (3,6 V). Au-delà, les diodes de protection conduisent.",
+      "analogWrite() : PWM LEDC à 1 kHz, 8 bits (valeurs par défaut du cœur Arduino-ESP32), visible à l'oscilloscope.",
       "ADC (atténuation 11 dB par défaut) : 12 bits, pleine échelle ≈ 3,1 V. La non-linéarité réelle n'est pas encore modélisée.",
       "Broche 3V3 : régulateur AMS1117-3.3 de la carte, prévoir au plus ~500 mA pour l'extérieur.",
     ],
@@ -96,7 +105,7 @@ export const esp32 = {
       const pin = nodes[2 + i];
       const st = pinState(inst, g.gpio);
       if (st.mode === "OUTPUT" || st.mode === "PWM") {
-        const lvl = outputLevel(inst, g.gpio, st);
+        const lvl = outputLevel(inst, g.gpio, st, ctx.t);
         stampThevenin(ctx, pin, gnd, lvl ? VDD : 0, lvl ? rHigh(d) : rLow(d));
       } else if (st.mode === "INPUT_PULLUP") stampThevenin(ctx, pin, gnd, VDD, R_PULL);
       else if (st.mode === "INPUT_PULLDOWN") ctx.conductance(pin, gnd, 1 / R_PULL);
@@ -112,9 +121,16 @@ export const esp32 = {
       const v = ctx.v(nodes[2 + i]) - ctx.v(gnd);
       out[`V${g.gpio}`] = v;
       out[`Vmin${g.gpio}`] = v;
-      out[`I${g.gpio}`] = -chipCurrent(inst, g, v, ctx.tempC); // courant sortant vers le circuit
+      out[`I${g.gpio}`] = -chipCurrent(inst, g, v, ctx.tempC, ctx.t); // courant sortant vers le circuit
     });
     return out;
+  },
+  nextBreak(inst, t) {
+    let next = Infinity;
+    for (const st of Object.values(inst.rt?.pins ?? {})) {
+      if (st.mode === "PWM" && st.duty > 0 && st.duty < 1) next = Math.min(next, nextEdge(t, st.freq ?? PWM_FREQ, st.duty));
+    }
+    return next;
   },
   describe(inst, avg, peak) {
     const warnings = [];

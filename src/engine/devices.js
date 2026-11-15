@@ -81,3 +81,58 @@ export function stampThevenin(ctx, a, ref, V, R) {
 }
 
 export const OPEN_G = 1e-12;
+
+/**
+ * Transistor bipolaire, modèle d'Ebers-Moll (forme « transport » de SPICE, sans effets de forte injection).
+ * m = { Is, BF, BR } ; pol = +1 (NPN) ou −1 (PNP).
+ */
+export function bjtCurrents(vbe, vbc, m, tempC = 25) {
+  const vt = thermalVoltage(tempC);
+  const [ef, def] = expLin(vbe / vt), [er, der] = expLin(vbc / vt);
+  const If = m.Is * (ef - 1), Ir = m.Is * (er - 1);
+  return { If, Ir, gf: (m.Is / vt) * def, gr: (m.Is / vt) * der, Ic: If - Ir * (1 + 1 / m.BR), Ib: If / m.BF + Ir / m.BR };
+}
+
+export function stampBJT(ctx, state, b, c, e, m, pol) {
+  const vt = thermalVoltage(ctx.tempC);
+  const vcrit = vt * Math.log(vt / (Math.SQRT2 * m.Is));
+  const vbe = pol * (ctx.v(b) - ctx.v(e)), vbc = pol * (ctx.v(b) - ctx.v(c));
+  const vbeL = pnjlim(vbe, state.vbe ?? 0, vt, vcrit), vbcL = pnjlim(vbc, state.vbc ?? 0, vt, vcrit);
+  if (vbeL !== vbe || vbcL !== vbc) ctx.markLimited();
+  state.vbe = vbeL; state.vbc = vbcL;
+  const { If, Ir, gf, gr } = bjtCurrents(vbeL, vbcL, m, ctx.tempC);
+  // Courant de transport collecteur → émetteur.
+  ctx.vccs(c, e, b, e, gf);
+  ctx.vccs(c, e, b, c, -gr);
+  ctx.current(c, e, pol * (If - Ir - gf * vbeL + gr * vbcL));
+  // Diodes base-émetteur et base-collecteur.
+  const gbe = gf / m.BF + GMIN_J, gbc = gr / m.BR + GMIN_J;
+  ctx.conductance(b, e, gbe);
+  ctx.current(b, e, pol * (If / m.BF - (gf / m.BF) * vbeL));
+  ctx.conductance(b, c, gbc);
+  ctx.current(b, c, pol * (Ir / m.BR - (gr / m.BR) * vbcL));
+}
+
+/**
+ * MOSFET, modèle quadratique de Shichman-Hodges (SPICE niveau 1, λ = 0).
+ * Retourne le courant drain → source et ses dérivées pour (vgs, vds) quelconques.
+ */
+export function mosCurrents(vgs, vds, m) {
+  const fwd = (g, d) => {
+    const vov = g - m.Vt;
+    if (vov <= 0) return [0, 0, 0];
+    if (d < vov) return [m.Kp * (vov * d - d * d / 2), m.Kp * d, m.Kp * (vov - d)];
+    return [m.Kp / 2 * vov * vov, m.Kp * vov, 0];
+  };
+  if (vds >= 0) { const [Id, gm, gds] = fwd(vgs, vds); return { Id, gm, gds }; }
+  const [I, g1, g2] = fwd(vgs - vds, -vds); // rôles drain/source échangés
+  return { Id: -I, gm: -g1, gds: g1 + g2 };
+}
+
+export function stampMOS(ctx, g, d, s, m, pol) {
+  const vgs = pol * (ctx.v(g) - ctx.v(s)), vds = pol * (ctx.v(d) - ctx.v(s));
+  const { Id, gm, gds } = mosCurrents(vgs, vds, m);
+  ctx.vccs(d, s, g, s, gm);
+  ctx.conductance(d, s, gds + 1e-9);
+  ctx.current(d, s, pol * (Id - gm * vgs - gds * vds));
+}

@@ -5,41 +5,67 @@
 ## Vue d'ensemble
 
 ```
-index.html, style.css
+index.html, dev.html, style.css
 src/
   engine/              Le simulateur (aucune dépendance au navigateur)
-    solver.js          MNA + Newton-Raphson, limitation de jonction, source stepping
-    devices.js         Briques physiques : jonction PN, Thévenin, ajustement Is depuis VF
-    circuit.js         Schéma -> netlist, masse, PWM moyenné, détection de casse
-    units.js           Formatage SI (4k7, 220 Ω, 5,84 mA)
+    solver.js          MNA + Newton-Raphson, limitation de jonction, source stepping, états discrets
+    transient.js       Analyse temporelle : pas adaptatif, trapèzes, points d'arrêt, moyennes glissantes
+    devices.js         Briques physiques : jonction PN, Thévenin, Ebers-Moll (bipolaire), MOSFET niveau 1
+    circuit.js         Schéma -> netlist, masse, point de fonctionnement continu, détection de casse
+    units.js           Formatage et lecture SI (4k7, 220 Ω, 5,84 mA)
   components/          Un fichier par famille de composants (le "plugin")
     index.js           Registre : la liste des composants disponibles
+    shapes.js          Aides de dessin (boîtiers DIP, pattes)
     passives.js        Masse, résistance, potentiomètre, interrupteur, bouton
+    reactive.js        Condensateur (polarisé ou non), bobine
     sources.js         Alimentation DC, piles (Thévenin), source de courant
+    instruments.js     Sonde d'oscilloscope, voltmètre, ampèremètre, multimètre, générateur de fonctions
     semiconductors.js  Diodes (1N4148, 1N4007, 1N5819, Zener 1N4733A), LED
-    esp32.js           Carte ESP32-DevKitC : GPIO, pull-ups, diodes de protection, ADC
+    transistors.js     Bipolaires (2N2222A, 2N3904, BC547B, 2N3906, BC557B), MOSFET (2N7000, IRLZ44N, IRF9540N)
+    opamps.js          Amplis opérationnels (LM358, µA741, TL072, MCP6002), comparateur LM393
+    analog-ics.js      NE555, régulateurs (L7805, L7812, AMS1117-3.3, LM317)
+    logic.js           Famille 74HC : 00, 02, 04, 08, 14, 32, 86, 74, 595, 138, 161, 4017, 4511
+    electromech.js     Relais SRD-05VDC / 12VDC
+    display.js         Afficheur 7 segments
+    sensors.js         Thermistance CTN, photorésistance, LM35 / TMP36
+    esp32.js           Carte ESP32-DevKitC : GPIO, pull-ups, diodes de protection, ADC, PWM temporelle
   runtime/
-    arduino.js         Exécute un sketch Arduino (sous-ensemble) sur l'ESP32 simulé
+    arduino.js         Exécute un sketch Arduino (sous-ensemble) sur l'ESP32 simulé, calé sur le temps simulé
   ui/
-    app.js             Plan de travail SVG, palette, mesures, éditeur de code
-    example.js         Montage et sketch de démonstration
+    app.js             Plan de travail SVG, palette, mesures, boucle de simulation, éditeur de code
+    scope.js           Oscilloscope 4 voies : tampon circulaire, déclenchement, mesures, export CSV
+    examples.js        Montages de démonstration
 tests/
-  datasheet.test.mjs   Chaque modèle confronté aux points de sa fiche technique
+  datasheet.test.mjs   Modèles statiques confrontés aux points de leur fiche technique
+  transient.test.mjs   Analyse temporelle, puces et instruments confrontés à la théorie et aux fiches
 docs/
   AJOUTER-UN-COMPOSANT.md   Procédure suivie par Claude pour intégrer un nouveau composant
 ```
 
 ## Le moteur
 
-On utilise la même méthode que SPICE pour le point de fonctionnement continu (`.op`) :
+### Résolution d'un instant
+
+On utilise la même méthode que SPICE :
 
 1. **Analyse nodale modifiée (MNA).** Chaque composant "estampille" sa contribution dans une matrice `A·x = b`. Les inconnues sont les tensions des nœuds et les courants des sources de tension.
-2. **Newton-Raphson.** Les composants non linéaires (diodes, LED, diodes de protection de l'ESP32) sont linéarisés autour de la solution courante, puis on itère jusqu'à convergence.
-3. **Robustesse.** Limitation de tension de jonction (`pnjlim` de SPICE), conductance minimale `GMIN` sur chaque nœud, redémarrage à froid puis *source stepping* si la convergence échoue.
-4. **PWM.** Une sortie PWM n'est pas approximée par une tension moyenne (faux pour une LED, qui est non linéaire). On résout le circuit dans chaque phase (HIGH/LOW) et on moyenne les courants et puissances pondérés par le rapport cyclique. Les alertes utilisent les valeurs crêtes.
-5. **Casse.** Après chaque résolution, chaque composant décrit son état. S'il est détruit (LED à plus de 100 mA, résistance à plus de 2× sa puissance nominale), il devient un circuit ouvert et on résout à nouveau, comme dans la réalité.
+2. **Newton-Raphson.** Les composants non linéaires (diodes, transistors, amplis) sont linéarisés autour de la solution courante, puis on itère jusqu'à convergence.
+3. **Robustesse.** Limitation de tension de jonction (`pnjlim`), conductance minimale `GMIN` sur chaque nœud, redémarrage à froid puis *source stepping* si la convergence échoue.
+4. **États discrets.** Une bascule, la mémoire d'un 555, le contact d'un relais ou la région d'un ampli (linéaire, saturé) ne sont pas des inconnues continues. Après chaque résolution, `update()` laisse le composant changer d'état ; on résout à nouveau jusqu'à ce que plus rien ne bouge (`solveSettled`).
 
-Limite actuelle : analyse **continue / quasi statique**. Les condensateurs, bobines et phénomènes rapides (rebonds, temps de montée) demandent une analyse transitoire, prévue à l'étape suivante (intégration trapézoïdale, même interface `stamp`).
+### Évolution dans le temps (`transient.js`)
+
+La classe `Simulation` fait avancer le circuit :
+
+- **Intégration par trapèzes** (ordre 2), avec deux pas d'Euler implicite après chaque discontinuité pour éviter les oscillations numériques.
+- **Pas adaptatif.** Chaque solution est comparée à son extrapolation linéaire : trop d'écart, le pas est refusé et réduit ; peu d'écart, il grandit (de 1 ns à 1 ms).
+- **Points d'arrêt.** Les fronts connus à l'avance (PWM, générateur carré) sont déclarés par `nextBreak()` : un pas se termine exactement dessus.
+- **Basculements imprévus** (comparateur, 555) : le pas est réduit jusqu'à localiser l'instant à la nanoseconde.
+- **Circuits statiques.** Sans élément réactif ni source variable, on saute directement au prochain événement : un montage purement continu ne coûte presque rien.
+- **Mesures.** Chaque grandeur est moyennée par un filtre exponentiel (50 ms simulées par défaut), avec suivi des crêtes : c'est ce que lit `describe()`, et ce qui fait qu'une LED en PWM affiche son courant moyen et alerte sur son courant crête.
+- **Casse.** À chaque image, chaque composant décrit son état. S'il est détruit, il devient un circuit ouvert, comme dans la réalité.
+
+`simulate()` (dans `circuit.js`) reste disponible pour un simple point de fonctionnement continu.
 
 ## Le contrat d'un composant
 
@@ -57,8 +83,13 @@ Un composant est un objet JavaScript. Le moteur et l'interface ne connaissent qu
 | `evaluate(ctx, inst, nodes, branches)` | Grandeurs numériques après résolution (`V`, `I`, `P`…) |
 | `describe(inst, avg, peak)` | Mesures lisibles, alertes, et éventuelle casse (`damage`) |
 | `symbol(inst, avg)`, `label(inst)` | Dessin SVG (unité : 20 px par pas de grille) |
+| `reactive: true` | Le composant a une mémoire continue (condensateur, bobine, pôle d'un ampli) : active le pas adaptatif |
+| `update(ctx, inst, nodes, branches)` | Change un état discret d'après la solution ; renvoie `true` s'il a changé (on résout à nouveau) |
+| `commit(ctx, inst, nodes, branches)` | Appelé une fois le pas accepté : mémorise l'état (tension d'un condensateur…) dans `inst.rt.s` |
+| `nextBreak(inst, t)`, `maxStep(inst)` | Prochain front connu ; plus grand pas toléré (générateur sinus) |
+| `instrument`, `reading(inst, avg)`, `scopeKey(inst)` | Pour un appareil de mesure : grandeur lue (`"V"` ou `"I"`), valeur affichée, grandeur tracée à l'oscilloscope |
 
-L'API `ctx` offerte à `stamp` : `v(n)`, `conductance(a, b, g)`, `current(a, b, I)`, `voltageSource(a, b, V, k)`, `branchI(k)`, `markLimited()`, `srcFactor`, `tempC`. Les briques de `devices.js` (`stampJunction`, `stampThevenin`, `fitIsFromVf`…) couvrent la plupart des besoins.
+L'API `ctx` offerte à `stamp` : `v(n)`, `conductance(a, b, g)`, `current(a, b, I)`, `voltageSource(a, b, V, k)`, `branchI(k)`, `markLimited()`, `srcFactor`, `tempC`, et pour l'analyse temporelle `t`, `dt`, `trap`, `vccs(…)`, `addA`, `addB`, `nodeRow`, `branchRow`. Les briques de `devices.js` (`stampJunction`, `stampThevenin`, `stampBJT`, `stampMOS`, `fitIsFromVf`…) couvrent la plupart des besoins. L'état mémorisé d'un composant vit dans `inst.rt.s`, un objet plat que le moteur sait sauvegarder et restaurer quand un pas est refusé.
 
 ## L'ESP32
 
@@ -70,10 +101,17 @@ Le modèle électrique suit le tableau *DC Characteristics* de la fiche Espressi
 - diodes de protection vers 3,3 V et GND : mettre 5 V sur une broche fait réellement circuler du courant, et l'interface alerte ;
 - états après reset des broches de strapping (GPIO2 en pull-down, GPIO5 en pull-up).
 
-Le code est un **sous-ensemble d'Arduino** converti en JavaScript asynchrone (`delay()` rend la main au navigateur). Ce n'est pas une émulation du processeur Xtensa : le timing est celui du navigateur, et les bibliothèques C++ ne sont pas disponibles. Une étape ultérieure pourra brancher un vrai émulateur de jeu d'instructions (QEMU-ESP32 compilé en WebAssembly) sur la même interface `setPin / read`.
+- PWM (`analogWrite`, `ledcWrite`) produite comme un vrai signal carré, 1 kHz par défaut (`analogWriteFrequency`), visible à l'oscilloscope.
+
+Le code est un **sous-ensemble d'Arduino** converti en JavaScript asynchrone. `delay()` et `millis()` suivent le **temps simulé** : en ralentissant la simulation, le sketch ralentit avec elle. Ce n'est pas une émulation du processeur Xtensa : les bibliothèques C++ ne sont pas disponibles. Une étape ultérieure pourra brancher un vrai émulateur de jeu d'instructions (QEMU-ESP32 compilé en WebAssembly) sur la même interface `setPin / read`.
+
+## Les instruments
+
+- **Oscilloscope** 4 voies : on pose une sonde sur un fil, ou on affecte une voie à un voltmètre, un ampèremètre ou un multimètre. Base de temps de 1 µs à 5 s par division, déclenchement sur front (auto, normal, mono-coup), défilement au-delà de 50 ms/div, calibre vertical automatique, mesures (crête à crête, moyenne, efficace, fréquence, rapport cyclique), curseur, export CSV.
+- **Voltmètre** (10 MΩ), **ampèremètre** (shunt 0,1 Ω, fusible 10 A) et **multimètre** (V et A en continu et alternatif, ohmmètre, test de diode) chargent le circuit comme les vrais.
+- **Générateur de fonctions** : sinus, carré, triangle, dent de scie, horloge logique, sortie 50 Ω.
 
 ## Pile technique et suite
 
-- Aujourd'hui : JavaScript moderne (modules ES), SVG, aucune dépendance, tests avec `node --test`.
-- Dès que le dépôt existe : Vite pour le développement, TypeScript progressif sur `engine/` et `components/`, CI GitHub Actions qui lance les tests de fiches techniques sur chaque PR.
-- Feuille de route : analyse transitoire (condensateurs, bobines, oscilloscope), transistors (2N2222, IRLZ44N), régulateurs (AMS1117), capteurs (DHT22, BME280) avec leurs protocoles, I²C/SPI simulés, export/import de montages.
+- JavaScript moderne (modules ES), SVG et canvas, aucune dépendance, tests avec `node --test`.
+- Pistes : Vite et TypeScript progressif, CI GitHub Actions, analyseur logique, bus I²C/SPI simulés avec leurs capteurs (DHT22, BME280, SSD1306), analyse fréquentielle (Bode), export/import de montages.

@@ -20,9 +20,9 @@ Le coordinateur ouvre un fil dédié, nommé d'après le composant. Ce fil trava
    - les valeurs maximales absolues (ce qui détruit le composant) ;
    - les courbes typiques utiles pour caler le modèle ;
    - un modèle SPICE publié par le fabricant s'il existe (préféré à un ajustement maison).
-3. **Choisir le modèle physique.** Réutiliser les briques de `src/engine/devices.js` (jonction, Thévenin) ou en ajouter une si nécessaire (ex. Ebers-Moll pour un bipolaire, modèle quadratique ou EKV pour un MOSFET). Pour un composant numérique (capteur, écran), modéliser l'électrique de ses broches *et* son protocole.
+3. **Choisir le modèle physique.** Réutiliser les briques de `src/engine/devices.js` (jonction, Thévenin, Ebers-Moll, MOSFET quadratique) ou en ajouter une si nécessaire. Une puce logique 74HC se décrit en quelques lignes avec `hcChip` (`src/components/logic.js`). Un composant à mémoire utilise `update` / `commit` et range son état dans `inst.rt.s`. Pour un composant numérique (capteur, écran), modéliser l'électrique de ses broches *et* son protocole.
 4. **Écrire le composant** dans `src/components/<famille>.js` selon le contrat décrit dans `docs/ARCHITECTURE.md`, puis l'ajouter à `src/components/index.js`. La section `datasheet` cite la source et les limites du modèle.
-5. **Écrire les tests** dans `tests/` : au moins trois points de la fiche technique (fonctionnement nominal, un autre point de la courbe, une limite qui déclenche une alerte ou la casse). Tolérance justifiée par la dispersion annoncée par le fabricant (typ/min/max).
+5. **Écrire les tests** dans `tests/` (le petit langage `bench()` de `tests/transient.test.mjs` câble un montage en une ligne) : au moins trois points de la fiche technique (fonctionnement nominal, un autre point de la courbe, une limite qui déclenche une alerte ou la casse). Tolérance justifiée par la dispersion annoncée par le fabricant (typ/min/max).
 6. **Vérifier dans l'application** : placer le composant, le câbler dans un montage typique de sa fiche (circuit d'application), comparer les mesures.
 7. **Ouvrir la PR** avec : la fiche technique utilisée, les points testés, ce que le modèle ne reproduit pas encore.
 

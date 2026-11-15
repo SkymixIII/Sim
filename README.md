@@ -1,6 +1,6 @@
 # Établi
 
-Émulateur de circuits électroniques dans le navigateur, dont chaque composant est calé sur sa fiche technique : diodes et LED au modèle de Shockley, piles avec leur résistance interne, ESP32 avec ses vraies limites de GPIO et un sous-ensemble d'Arduino pour le programmer.
+Émulateur de circuits électroniques dans le navigateur, dont chaque composant est calé sur sa fiche technique. Simulation temporelle (condensateurs, bobines, oscillateurs), transistors, amplis opérationnels, NE555, régulateurs, logique 74HC, capteurs, ESP32 programmable en Arduino, et les instruments d'un vrai établi : oscilloscope 4 voies, voltmètre, ampèremètre, multimètre, générateur de fonctions.
 
 ## Lancer
 
@@ -11,5 +11,5 @@ npm test                      # vérifie les modèles contre les fiches techniqu
 
 ## Documentation
 
-- [Architecture](docs/ARCHITECTURE.md) : moteur MNA/Newton-Raphson, contrat d'un composant, modèle de l'ESP32.
+- [Architecture](docs/ARCHITECTURE.md) : moteur MNA/Newton-Raphson, analyse temporelle, instruments, contrat d'un composant, modèle de l'ESP32.
 - [Ajouter un composant réel](docs/AJOUTER-UN-COMPOSANT.md) : la procédure suivie quand on demande un nouveau composant.
