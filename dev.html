@@ -22,16 +22,24 @@
       <button id="act-delete" title="Supprimer la sélection (Suppr)">Supprimer</button>
       <button id="act-repair" title="Remplacer les composants détruits">Réparer</button>
       <span class="sep"></span>
-      <button id="act-reset" class="ghost" title="Recharger le montage d'exemple">Exemple</button>
+      <button id="sim-run" class="tool" title="Mettre la simulation en pause ou la reprendre (Espace)">Pause</button>
+      <button id="sim-reset" title="Revenir à t = 0 : condensateurs déchargés, compteurs à zéro, sketch relancé">Remise à zéro</button>
+      <select id="sim-speed" title="Vitesse de la simulation par rapport au temps réel" aria-label="Vitesse de simulation">
+        <option value="1">Temps réel</option><option value="0.1">Ralenti ÷10</option><option value="0.01">Ralenti ÷100</option><option value="0.001">Ralenti ÷1 000</option><option value="0.0001">Ralenti ÷10 000</option>
+      </select>
+      <button id="scope-toggle" class="tool" title="Afficher ou masquer l'oscilloscope">Oscilloscope</button>
+      <span class="sep"></span>
+      <select id="examples" title="Charger un montage d'exemple" aria-label="Montages d'exemple"></select>
       <button id="act-clear" class="ghost" title="Vider le plan de travail">Vider</button>
     </div>
   </header>
 
   <aside class="palette" aria-label="Composants">
+    <input id="palette-search" type="search" placeholder="Chercher : 555, LM358, relais…" aria-label="Chercher un composant">
     <div id="palette-list"></div>
     <section class="request">
       <h2>Ajouter un composant réel</h2>
-      <p>Demandez-le dans le chat du projet, par exemple <q>Ajoute un capteur DHT22</q> ou <q>Ajoute un transistor 2N2222</q>.</p>
+      <p>Demandez-le dans le chat du projet, par exemple <q>Ajoute un capteur DHT22</q> ou <q>Ajoute un écran OLED SSD1306</q>.</p>
       <p>Claude ouvre un fil dédié, lit la fiche technique, écrit le modèle et ses tests, puis l'intègre ici.</p>
     </section>
   </aside>
@@ -41,6 +49,25 @@
       <svg id="canvas" xmlns="http://www.w3.org/2000/svg"></svg>
       <div id="tip" class="tip" hidden></div>
     </div>
+    <section class="scope" id="scope" aria-label="Oscilloscope" hidden>
+      <header class="scope-bar">
+        <strong>Oscilloscope</strong>
+        <button id="sc-run" class="small" title="Figer ou relancer l'acquisition">Figer</button>
+        <button id="sc-single" class="small" title="Une seule acquisition au prochain déclenchement">Mono-coup</button>
+        <label>Base de temps <select id="sc-tdiv"></select></label>
+        <label>Déclenchement <select id="sc-src" aria-label="Voie de déclenchement"></select>
+          <select id="sc-edge" aria-label="Front"><option value="rise">front montant</option><option value="fall">front descendant</option></select>
+          <select id="sc-mode" aria-label="Mode"><option value="auto">auto</option><option value="normal">normal</option></select></label>
+        <label class="check"><input type="checkbox" id="sc-stack"> Voies séparées</label>
+        <span class="grow"></span>
+        <button id="sc-csv" class="ghost small" title="Télécharger la courbe affichée">Exporter CSV</button>
+        <button id="sc-close" class="ghost small" aria-label="Fermer l'oscilloscope">Fermer</button>
+      </header>
+      <div class="scope-body">
+        <canvas id="scope-canvas"></canvas>
+        <div class="scope-side" id="scope-side"></div>
+      </div>
+    </section>
     <footer class="statusbar" id="status"></footer>
   </main>
 
@@ -61,7 +88,7 @@
       <textarea id="code" spellcheck="false" aria-label="Sketch Arduino"></textarea>
       <div class="serial-head"><h3>Moniteur série · 115200 bauds</h3><button id="serial-clear" class="ghost small">Effacer</button></div>
       <pre id="serial" class="serial" aria-live="polite"></pre>
-      <p class="hint">Sous-ensemble Arduino : pinMode, digitalWrite/Read, analogWrite (PWM moyenné), analogRead, delay, millis, Serial. Les fonctions C++ avancées (classes, pointeurs, bibliothèques) ne sont pas encore prises en charge.</p>
+      <p class="hint">Sous-ensemble Arduino : pinMode, digitalWrite/Read, analogWrite (PWM 1 kHz, visible à l'oscilloscope), analogWriteFrequency, analogRead, delay, millis, Serial. delay() et millis() suivent le temps simulé. Les fonctions C++ avancées (classes, pointeurs, bibliothèques) ne sont pas encore prises en charge.</p>
     </section>
   </aside>
 </div>

@@ -25,7 +25,10 @@ export function transpile(src) {
 
 /**
  * board : { pins: liste des GPIO disponibles, inputOnly: Set, adc: Set,
- *           setPin(gpio, state), read(gpio) -> 0|1, analog(gpio) -> 0..4095 }
+ *           setPin(gpio, state), read(gpio) -> 0|1, analog(gpio) -> 0..4095,
+ *           clock?: { now() -> ms, schedule(ms, fn) -> annuler } }
+ * Avec `clock`, delay() et millis() suivent le temps simulé (le sketch ralentit et se met en pause
+ * avec la simulation) ; sans, ils suivent l'horloge du navigateur.
  */
 export class SketchRunner {
   constructor(board, { log, onState }) {
@@ -43,15 +46,20 @@ export class SketchRunner {
   async start(source) {
     this.stop();
     const token = (this.token = {});
-    const t0 = performance.now();
     const alive = () => this.token === token;
     const b = this.board;
+    const clock = b.clock ?? {
+      now: () => performance.now(),
+      schedule(ms, fn) { const id = setTimeout(fn, ms); return () => clearTimeout(id); },
+    };
+    const t0 = clock.now();
     const wait = (ms) => new Promise((resolve, reject) => {
       if (!alive()) return reject(STOP);
-      const id = setTimeout(() => { this.timers.delete(cancel); alive() ? resolve() : reject(STOP); }, ms);
-      const cancel = () => { clearTimeout(id); reject(STOP); };
+      const undo = clock.schedule(ms, () => { this.timers.delete(cancel); alive() ? resolve() : reject(STOP); });
+      const cancel = () => { undo(); reject(STOP); };
       this.timers.add(cancel);
     });
+    const pwm = {}; // fréquence PWM choisie par broche
     const checkPin = (pin) => {
       if (!b.pins.includes(pin)) throw new Error(`GPIO${pin} n'est pas disponible sur cette carte (broches : ${b.pins.join(", ")}).`);
     };
@@ -82,12 +90,13 @@ export class SketchRunner {
         checkPin(pin);
         if (b.inputOnly.has(pin)) { api.Serial.println(`E (ledc) : GPIO${pin} ne peut pas générer de PWM`); return; }
         modes[pin] = "PWM";
-        b.setPin(pin, { mode: "PWM", duty: Math.min(255, Math.max(0, val)) / 255 });
+        b.setPin(pin, { mode: "PWM", duty: Math.min(255, Math.max(0, val)) / 255, freq: pwm[pin] });
       },
+      analogWriteFrequency(pin, hz) { checkPin(pin); pwm[pin] = Math.min(40e3, Math.max(1, hz)); },
       delay: (ms) => wait(Math.max(0, ms)),
       delayMicroseconds: (us) => wait(us / 1000),
-      millis: () => Math.floor(performance.now() - t0),
-      micros: () => Math.floor((performance.now() - t0) * 1000),
+      millis: () => Math.floor(clock.now() - t0),
+      micros: () => Math.floor((clock.now() - t0) * 1000),
       random: (a, c) => (c === undefined ? Math.floor(Math.random() * a) : a + Math.floor(Math.random() * (c - a))),
       map: (x, inMin, inMax, outMin, outMax) => Math.trunc(((x - inMin) * (outMax - outMin)) / (inMax - inMin) + outMin),
       constrain: (x, lo, hi) => Math.min(hi, Math.max(lo, x)),

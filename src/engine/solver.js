@@ -43,16 +43,14 @@ export function solveLinear(A, b) {
   return x;
 }
 
-// Limitation de tension de jonction (SPICE pnjlim) : évite que exp() explose
-// pendant les itérations de Newton.
+// Limitation de tension de jonction (SPICE pnjlim) : évite que exp() explose pendant les
+// itérations de Newton. Une jonction qui s'allume rejoint d'abord son « coude » vcrit (le point
+// de courbure maximale) : de là, Newton converge en quelques itérations dans les deux sens.
 export function pnjlim(vnew, vold, vt, vcrit) {
   if (vnew > vcrit && Math.abs(vnew - vold) > 2 * vt) {
-    if (vold > 0) {
-      const arg = 1 + (vnew - vold) / vt;
-      vnew = arg > 0 ? vold + vt * Math.log(arg) : vcrit;
-    } else {
-      vnew = vt * Math.log(vnew / vt);
-    }
+    if (vold < vcrit) return vcrit;
+    const arg = 1 + (vnew - vold) / vt;
+    vnew = arg > 0 ? vold + vt * Math.log(arg) : vcrit;
   }
   return vnew;
 }

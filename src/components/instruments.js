@@ -15,7 +15,7 @@ const R_VOLT = 10e6;   // impédance d'entrée d'un multimètre numérique en vo
 const R_SHUNT = 0.1;   // shunt + fusible du calibre ampèremètre
 const I_FUSE = 10;     // fusible 10 A
 
-const meterSymbol = (letter, inst) => `${lead(0, 24)}<circle class="meter" cx="40" cy="0" r="16"/><text class="meter-letter" x="40" y="5">${letter}</text>${lead(56, 80)}<text class="pm" x="6" y="-8">+</text>${chTag(inst, 40, 30)}`;
+const meterSymbol = (letter, inst) => `${lead(0, 24)}<circle class="meter" cx="40" cy="0" r="16"/><text class="meter-letter" x="40" y="5" transform="rotate(${-(inst?.rot || 0) * 90} 40 0)">${letter}</text>${lead(56, 80)}<text class="pm" x="6" y="-8">+</text>${chTag(inst, 40, 30)}`;
 
 export const voltmeter = {
   type: "voltmeter",
@@ -204,7 +204,7 @@ export function waveValue(p, t) {
 
 /** Prochain front d'un signal rectangulaire de fréquence f et de rapport cyclique duty, après t. */
 export function nextEdge(t, f, duty) {
-  const T = 1 / f, k = Math.floor(t * f), eps = T * 1e-9 + 2e-12;
+  const T = 1 / f, k = Math.floor(t * f), eps = 1e-13 + 1e-12 * t;
   for (const c of [k * T, (k + duty) * T, (k + 1) * T, (k + 1 + duty) * T]) if (c > t + eps) return c;
   return (k + 2) * T;
 }

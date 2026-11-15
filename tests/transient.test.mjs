@@ -477,3 +477,24 @@ test("une broche posée sur un fil y est connectée", () => {
   };
   near(simulate(circuit).comps.get("r").avg.I, 0.05, 1e-9, "courant");
 });
+
+test("un front n'est jamais sauté, même si une image s'arrête juste avant lui", () => {
+  const b = bench().add("g", "funcgen", { wave: "clock", f: 4, A: 5 }).add("r", "resistor", { R: 10e3 }).net("g.+", "r.1").net("g.-", "r.2");
+  const sim = b.sim();
+  let edges = 0, prev = null;
+  sim.onStep = () => { const hi = sim.instant("r").V > 2.5; if (prev !== null && hi !== prev) edges++; prev = hi; };
+  // Cibles d'avance qui tombent à un cheveu (erreur d'arrondi) avant chaque front.
+  for (let k = 1; k <= 40; k++) { sim.advance(k * 0.125 * (1 - 2e-16)); sim.advance(k * 0.125 + 0.01); }
+  assert.equal(edges, 40);
+});
+
+test("tous les exemples fournis se simulent sans erreur ni alerte de destruction", async () => {
+  const { EXAMPLES } = await import("../src/ui/examples.js");
+  for (const ex of EXAMPLES) {
+    const sim = new Simulation(ex.circuit());
+    sim.advance(0.05);
+    const res = sim.frame();
+    assert.ok(res.ok, `${ex.id} : ${res.error}`);
+    for (const [id, c] of res.comps) assert.ok(!(c.warnings ?? []).some((w) => w.level === "danger"), `${ex.id} : ${id} en défaut`);
+  }
+});

@@ -15,7 +15,7 @@ export const H_MIN = 1e-9;     // plus petit pas
 const H_FRESH = 1e-8;          // premier pas après une discontinuité
 const H_MAX = 1e-3;            // plus grand pas (résolution des mesures affichées)
 const EPS_T = 1e-12;           // les sources sont évaluées juste avant la fin du pas
-const RELTOL = 0.005, ABSTOL = 5e-4;
+const RELTOL = 0.01, ABSTOL = 1e-3;
 
 const copyState = (s) => (s ? { ...s } : s);
 
@@ -86,25 +86,26 @@ export class Simulation {
   step(tLimit) {
     if (!this.prep) this.build();
     const { prep } = this;
-    let tBreak = Infinity, hmax = this.hMaxUser;
+    let tBreak = Infinity, hmaxDef = Infinity;
     for (const el of prep.els) {
       const d = el.def;
       if (d.nextBreak) tBreak = Math.min(tBreak, d.nextBreak(el.inst, this.t));
-      if (d.maxStep) hmax = Math.min(hmax, d.maxStep(el.inst));
+      if (d.maxStep) hmaxDef = Math.min(hmaxDef, d.maxStep(el.inst));
     }
-    const tEnd = Math.min(tLimit, tBreak);
+    // Un front tout proche de la limite demandée est atteint dans ce pas : il ne faut pas s'arrêter
+    // juste avant, on ne le reverrait plus comme point d'arrêt.
+    const tEnd = tBreak - tLimit < 1e-9 + 2e-12 * this.t ? tBreak : tLimit;
     const room = tEnd - this.t;
     if (room <= 1e-13) { this.t = tEnd; if (tEnd === tBreak) this.markFresh(); return; }
-    const want = this.reactive || this.dirty ? this.h : Infinity;
-    let h = Math.min(want, hmax, room);
-    const landing = h >= room * (1 - 1e-9);
-    if (landing) h = room;
-
-    // Rien ne bouge (ni réactif, ni source variable, ni entrée modifiée) : la solution reste valable.
-    if (!this.reactive && !this.dirty && this.last && hmax >= this.hMaxUser) {
-      this.finish(h, landing, tEnd, tBreak);
+    // Rien ne bouge (ni réactif, ni source variable, ni entrée modifiée) : la solution reste valable
+    // jusqu'au prochain événement, inutile de recalculer ni de découper le temps.
+    if (!this.reactive && !this.dirty && this.last && hmaxDef === Infinity) {
+      this.finish(room, true, tEnd, tBreak);
       return;
     }
+    let h = Math.min(this.reactive || this.dirty ? this.h : Infinity, hmaxDef, this.hMaxUser, room);
+    const landing = h >= room * (1 - 1e-9);
+    if (landing) h = room;
 
     const saved = this.stateful.map((el) => copyState(el.inst.rt?.s));
     const restore = () => this.stateful.forEach((el, i) => { if (el.inst.rt) el.inst.rt.s = saved[i]; });
