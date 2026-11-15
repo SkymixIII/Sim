@@ -22,8 +22,8 @@ static const uint32_t PERIODE_RADIO_MS = 100;
 static const uint32_t TIMEOUT_NUCLEO_MS = 1000;
 static const uint8_t  MAX_CAMS = 8;
 static const uint8_t  TTL_MAX = 6;
-static const int      RX_NUCLEO = 16;       // RX2 <- D1 (PG14) du Nucleo
-static const int      TX_NUCLEO = 17;       // TX2 -> D0 (PG9) du Nucleo (inutilisé, mais câblé)
+static const int      RX_NUCLEO = 16;       // RX2 <- D1 (PB6) du Nucleo
+static const int      TX_NUCLEO = 17;       // TX2 -> D0 (PB7) du Nucleo (inutilisé, mais câblé)
 static const int      LED_STATUT = 2;
 
 static const uint8_t BROADCAST[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};

@@ -88,8 +88,8 @@ ol, ul { margin: 0; padding-left: 1.3em; display: grid; gap: 6px; max-width: 70c
       <text x="135" y="68" text-anchor="middle" class="pcb-t" font-weight="400">connecteurs CN10 / CN8</text>
       <rect x="55" y="230" width="50" height="38" rx="3" fill="var(--rj45)"/><text x="80" y="254" text-anchor="middle" class="pcb-t">RJ45</text>
       <g>
-        <circle class="pin" cx="250" cy="110" r="6"/><text x="236" y="114" text-anchor="end" class="pcb-t">D1 · PG14 (TX)</text>
-        <circle class="pin" cx="250" cy="150" r="6"/><text x="236" y="154" text-anchor="end" class="pcb-t">D0 · PG9 (RX)</text>
+        <circle class="pin" cx="250" cy="110" r="6"/><text x="236" y="114" text-anchor="end" class="pcb-t">D1 · PB6 (TX)</text>
+        <circle class="pin" cx="250" cy="150" r="6"/><text x="236" y="154" text-anchor="end" class="pcb-t">D0 · PB7 (RX)</text>
         <circle class="pin" cx="250" cy="190" r="6"/><text x="236" y="194" text-anchor="end" class="pcb-t">GND</text>
         <circle class="pin" cx="250" cy="230" r="6"/><text x="236" y="234" text-anchor="end" class="pcb-t">5V</text>
       </g>
@@ -114,8 +114,8 @@ ol, ul { margin: 0; padding-left: 1.3em; display: grid; gap: 6px; max-width: 70c
   <div class="tw"><table>
     <thead><tr><th>Fil</th><th>Nucleo</th><th>ESP32 DevKit V1</th><th>Rôle</th></tr></thead>
     <tbody>
-      <tr><td><span class="sw" style="background:var(--wire-tx)"></span>1</td><td><code>D1</code> (PG14, USART6 TX), CN10</td><td><code>RX2</code> (GPIO16)</td><td>Le tally, 10 fois par seconde</td></tr>
-      <tr><td><span class="sw" style="background:var(--wire-rx)"></span>2</td><td><code>D0</code> (PG9, USART6 RX), CN10</td><td><code>TX2</code> (GPIO17)</td><td>Inutilisé pour l'instant, prévu pour un retour</td></tr>
+      <tr><td><span class="sw" style="background:var(--wire-tx)"></span>1</td><td><code>D1</code> (PB6, TX), CN10</td><td><code>RX2</code> (GPIO16)</td><td>Le tally, 10 fois par seconde</td></tr>
+      <tr><td><span class="sw" style="background:var(--wire-rx)"></span>2</td><td><code>D0</code> (PB7, RX), CN10</td><td><code>TX2</code> (GPIO17)</td><td>Inutilisé pour l'instant, prévu pour un retour</td></tr>
       <tr><td><span class="sw" style="background:var(--wire-gnd)"></span>3</td><td><code>GND</code></td><td><code>GND</code></td><td>Masse commune, obligatoire</td></tr>
       <tr><td><span class="sw" style="background:var(--wire-5v)"></span>4</td><td><code>5V</code>, CN8</td><td><code>VIN</code></td><td>Facultatif : alimente l'ESP32 depuis le Nucleo. Sinon, branchez l'ESP32 sur son propre USB.</td></tr>
     </tbody>

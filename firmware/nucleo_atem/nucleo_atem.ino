@@ -5,7 +5,7 @@
 //    ATEM (UDP 9910) comme ATEM Software Control.
 //  - Lit la commande TlIn (tally de toutes les M/E : bit 0 programme, bit 1 preview).
 //  - Envoie le tally des caméras 1 à 8 à l'ESP32 émetteur par liaison série
-//    (USART6 : D1/PG14 = TX vers l'ESP32, D0/PG9 = RX), 10 fois par seconde.
+//    (D1/PB6 = TX vers l'ESP32, D0/PB7 = RX), 10 fois par seconde.
 //  - LED verte LD1 : connecté à l'ATEM. LED rouge LD3 : pas d'ATEM.
 //  - Journal sur le port USB du ST-Link (moniteur série 115200 bauds).
 //
@@ -31,11 +31,8 @@ static const uint32_t TIMEOUT_ATEM_MS = 2000;
 static const uint32_t RELANCE_HELLO_MS = 1000;
 static const uint8_t  MAX_CAMS = 8;
 
-HardwareSerial VersEsp32(PG9, PG14);    // RX = D0 (PG9), TX = D1 (PG14) : USART6
+Uart VersEsp32(PB7, PB6);               // RX = D0 (PB7), TX = D1 (PB6), comme le brochage Arduino du Nucleo
 
-#ifndef LED_RED
-#define LED_RED PB14
-#endif
 
 // ---------- Protocole ATEM ----------
 static const uint8_t F_ACK_DEMANDE = 0x08;
