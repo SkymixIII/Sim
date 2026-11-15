@@ -1,14 +1,21 @@
 #!/usr/bin/env python3
 """Lit le tally de l'ATEM sur le Mac (RJ45) et l'envoie à l'ESP32 émetteur par USB.
 
-Usage :  python3 atem_vers_esp32.py 192.168.2.20
+Usage :  python3 atem_vers_esp32.py 192.168.2.20            (tally général de l'ATEM)
+         python3 atem_vers_esp32.py 192.168.2.20 --me 2     (programme / preview de la M/E 2)
          python3 atem_vers_esp32.py 192.168.2.20 /dev/cu.usbserial-0001
 Sans port indiqué, le script prend le premier /dev/cu.usbserial*, cu.SLAB* ou cu.wchusbserial*.
 Le Moniteur série d'Arduino IDE doit être fermé. Aucune installation. Ctrl+C pour arrêter.
 """
 import glob, os, random, socket, sys, termios, time
 
-IP_ATEM = sys.argv[1] if len(sys.argv) > 1 else "192.168.10.240"
+ARGS = [a for a in sys.argv[1:]]
+ME = None                      # None : tally général (TlIn) ; 1 ou 2 : suit cette M/E
+if "--me" in ARGS:
+    i = ARGS.index("--me")
+    ME = int(ARGS[i + 1])
+    del ARGS[i:i + 2]
+IP_ATEM = ARGS[0] if ARGS else "192.168.10.240"
 PORT_ATEM = 9910
 NB_CAMS = 8
 PERIODE_ENVOI = 0.1
@@ -16,8 +23,8 @@ F_ACK_DEMANDE, F_HELLO, F_ACK = 0x08, 0x10, 0x80
 
 
 def trouver_port():
-    if len(sys.argv) > 2:
-        return sys.argv[2]
+    if len(ARGS) > 1:
+        return ARGS[1]
     for motif in ("/dev/cu.usbserial*", "/dev/cu.SLAB*", "/dev/cu.wchusbserial*"):
         ports = sorted(glob.glob(motif))
         if ports:
@@ -79,7 +86,7 @@ def commandes(data):
 def main():
     port = trouver_port()
     fd = ouvrir_serie(port)
-    print(f"ESP32 sur {port}, ATEM {IP_ATEM}", flush=True)
+    print(f"ESP32 sur {port}, ATEM {IP_ATEM}, " + (f"suit la M/E {ME}" if ME else "tally général"), flush=True)
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.bind(("", 0))
     sock.settimeout(0.05)
@@ -88,6 +95,16 @@ def main():
     session = 0
     dernier_recu = dernier_hello = dernier_envoi = 0.0
     tampon_esp = b""
+    prg, prv = {}, {}
+
+    def changer_tally(nouveau, origine):
+        nonlocal tally
+        if nouveau == tally:
+            return
+        tally = nouveau
+        etats = "  ".join(f"{k + 1}:{'PGM' if f & 1 else 'PVW' if f & 2 else '-'}" for k, f in enumerate(tally))
+        print(time.strftime("%H:%M:%S"), f"Tally ({origine}) :", etats, flush=True)
+        envoyer_esp()
 
     def envoyer_esp():
         nonlocal dernier_envoi
@@ -128,14 +145,16 @@ def main():
                     pid = int.from_bytes(data[10:12], "big")
                     sock.sendto(bytes(entete(F_ACK, 12, sess, ack_id=pid)), (IP_ATEM, PORT_ATEM))
                 for nom, corps in commandes(data):
-                    if nom == "TlIn" and len(corps) >= 2:
+                    if nom == "TlIn" and len(corps) >= 2 and ME is None:
                         nb = int.from_bytes(corps[0:2], "big")
-                        nouveau = [corps[2 + k] & 0x03 if k < nb and 2 + k < len(corps) else 0 for k in range(NB_CAMS)]
-                        if nouveau != tally:
-                            tally = nouveau
-                            etats = "  ".join(f"{k + 1}:{'PGM' if f & 1 else 'PVW' if f & 2 else '-'}" for k, f in enumerate(tally))
-                            print(time.strftime("%H:%M:%S"), "Tally :", etats, flush=True)
-                            envoyer_esp()
+                        changer_tally([corps[2 + k] & 0x03 if k < nb and 2 + k < len(corps) else 0 for k in range(NB_CAMS)], "général")
+                    elif nom in ("PrgI", "PrvI") and len(corps) >= 4:
+                        me, src = corps[0], int.from_bytes(corps[2:4], "big")
+                        (prg if nom == "PrgI" else prv)[me] = src
+                        print(time.strftime("%H:%M:%S"), f"   M/E {me + 1} : PGM {prg.get(me, '?')} / PVW {prv.get(me, '?')}", flush=True)
+                        if ME is not None and me == ME - 1:
+                            changer_tally([(1 if prg.get(me) == k + 1 else 0) | (2 if prv.get(me) == k + 1 else 0)
+                                           for k in range(NB_CAMS)], f"M/E {ME}")
 
         if connecte and time.time() - dernier_recu > 2.5:
             connecte = False
