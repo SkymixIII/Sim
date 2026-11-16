@@ -1,0 +1,171 @@
+<title>Câblage tally WT32 simple</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+/* Layout : une colonne de lecture, chaque schéma dans sa propre zone défilable, fiches broche à broche en tableaux. */
+:root {
+  --bg: #f5f7f6; --surface: #ffffff; --fg: #17201d; --muted: #5b6763; --line: #c9d2ce;
+  --pcb: #1f5a45; --pcb-ink: #e9f3ee; --wire-a: #d9480f; --wire-b: #1c7ed6; --wire-gnd: #343a40; --wire-3v3: #c2255c;
+  --usb: #6741d9; --radio: #0c8599; --seg: #e03131; --dip: #1971c2;
+  --sans: "IBM Plex Sans", system-ui, sans-serif; --mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #111614; --surface: #1a211e; --fg: #e3ebe7; --muted: #9aa8a2; --line: #34403b;
+  --pcb: #2a7a5e; --pcb-ink: #f0f8f4; --wire-a: #ff7a3d; --wire-b: #4dabf7; --wire-gnd: #adb5bd; --wire-3v3: #f06595;
+  --usb: #9775fa; --radio: #3bc9db; --seg: #ff6b6b; --dip: #4dabf7; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #111614; --surface: #1a211e; --fg: #e3ebe7; --muted: #9aa8a2; --line: #34403b;
+  --pcb: #2a7a5e; --pcb-ink: #f0f8f4; --wire-a: #ff7a3d; --wire-b: #4dabf7; --wire-gnd: #adb5bd; --wire-3v3: #f06595;
+  --usb: #9775fa; --radio: #3bc9db; --seg: #ff6b6b; --dip: #4dabf7; color-scheme: dark }
+body { background: var(--bg); color: var(--fg); font: 16px/1.55 var(--sans); }
+main { max-width: 900px; margin: 0 auto; padding-block: 32px 64px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 40px; }
+h1 { font-size: 1.9rem; line-height: 1.2; margin: 0 0 8px; text-wrap: balance; }
+h2 { font-size: 1.3rem; margin: 0 0 12px; text-wrap: balance; }
+p { margin: 0 0 12px; max-width: 65ch; }
+.lead { color: var(--muted); }
+section { min-width: 0; display: grid; gap: 12px; }
+section > * { margin-bottom: 0; }
+.fig { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 12px; }
+.fig svg { display: block; min-width: 640px; width: 100%; height: auto; }
+svg text { font-family: var(--mono); fill: var(--fg); font-size: 12px; }
+svg .pcb { fill: var(--pcb); }
+svg .pcb-t { fill: var(--pcb-ink); font-weight: 600; }
+svg .pin { fill: var(--surface); stroke: var(--pcb-ink); stroke-width: 1.2; }
+svg .muted { fill: var(--muted); }
+svg .box { fill: var(--surface); stroke: var(--fg); stroke-width: 1.5; }
+.tw { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 0.95rem; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; }
+td code, p code, li code { font-family: var(--mono); font-size: 0.9em; }
+.sw { display: inline-block; width: 22px; height: 4px; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
+ol, ul { margin: 0; padding-left: 1.3em; display: grid; gap: 6px; max-width: 70ch; }
+.note { border-left: 3px solid var(--wire-a); padding: 8px 12px; background: var(--surface); }
+</style>
+
+<main>
+<header>
+  <h1>Câblage du tally ATEM, émetteur WT32-ETH01, version simple</h1>
+  <p class="lead">Le WT32-ETH01 a son propre port RJ45 : il est branché directement à l'ATEM. Il calcule le tally de toutes les M/E (clés DVE, SuperSource, multiview compris) et le diffuse en ESP-NOW. Une caméra est rouge si elle est au programme de n'importe quelle M/E. Chaque tally n'a que ses 3 LED et suit une caméra fixée dans son code. Aucun ordinateur n'est nécessaire.</p>
+</header>
+
+<section>
+  <h2>Vue d'ensemble</h2>
+  <div class="fig">
+    <svg viewBox="0 0 860 170" role="img" aria-label="ATEM en RJ45 vers le WT32-ETH01 émetteur, radio vers les tallys">
+      <rect class="box" x="10" y="55" width="150" height="60" rx="6"/>
+      <text x="85" y="80" text-anchor="middle" font-weight="600">ATEM 2 M/E</text>
+      <text x="85" y="98" text-anchor="middle" class="muted">192.168.2.20</text>
+      <line x1="160" y1="85" x2="380" y2="85" stroke="var(--usb)" stroke-width="4"/>
+      <text x="270" y="75" text-anchor="middle" style="fill:var(--usb)">câble RJ45</text>
+      <rect class="pcb" x="380" y="40" width="210" height="90" rx="6"/>
+      <text x="485" y="70" text-anchor="middle" class="pcb-t">WT32-ETH01</text>
+      <text x="485" y="88" text-anchor="middle" class="pcb-t" font-weight="400">rien à câbler</text>
+      <text x="485" y="104" text-anchor="middle" class="pcb-t" font-weight="400">toutes les M/E</text>
+      <path d="M605 70 q12 15 0 30 M618 60 q20 25 0 50 M631 50 q28 35 0 70" fill="none" stroke="var(--radio)" stroke-width="2.5"/>
+      <text x="700" y="30" text-anchor="middle" style="fill:var(--radio)">ESP-NOW canal 1</text>
+      <rect class="pcb" x="680" y="48" width="165" height="30" rx="4"/><text x="762" y="68" text-anchor="middle" class="pcb-t">Tally CAM 1</text>
+      <rect class="pcb" x="680" y="88" width="165" height="30" rx="4"/><text x="762" y="108" text-anchor="middle" class="pcb-t">… CAM 8</text>
+      <text x="762" y="145" text-anchor="middle" class="muted">+ antennes relais</text>
+    </svg>
+  </div>
+</section>
+
+<section>
+  <h2>Émetteur : WT32-ETH01</h2>
+  <p>Rien à ajouter sur la carte : le RJ45 va à l'ATEM, et le 5V et GND à une alimentation. Sans interrupteur câblé, l'émetteur suit toutes les M/E.</p>
+  <div class="fig">
+    <svg viewBox="0 0 610 330" role="img" aria-label="WT32-ETH01 émetteur, alimentation et adaptateur de téléversement">
+      <rect class="pcb" x="60" y="20" width="220" height="290" rx="8"/>
+      <text x="170" y="50" text-anchor="middle" class="pcb-t">WT32-ETH01</text>
+      <text x="170" y="68" text-anchor="middle" class="pcb-t" font-weight="400">émetteur</text>
+      <rect x="130" y="250" width="80" height="50" rx="3" style="fill:var(--pcb-ink)"/><text x="170" y="280" text-anchor="middle" font-size="12" style="fill:var(--pcb)">RJ45</text>
+      <path d="M170 300 V318" stroke="var(--usb)" stroke-width="5"/><text x="185" y="322" class="muted" font-size="11">vers l'ATEM</text>
+      <rect class="box" x="450" y="78" width="150" height="62" rx="6"/><text x="525" y="104" text-anchor="middle" font-weight="600">Chargeur USB 5 V</text><text x="525" y="122" text-anchor="middle" class="muted">ou adaptateur</text>
+      <rect class="box" x="450" y="160" width="150" height="110" rx="6" stroke-dasharray="6 4"/><text x="525" y="182" text-anchor="middle" font-weight="600">Adaptateur</text><text x="525" y="198" text-anchor="middle" font-weight="600">USB-série 3,3 V</text><text x="525" y="258" text-anchor="middle" class="muted">pour téléverser</text>
+      <circle class="pin" cx="280" cy="95" r="6"/><text x="266" y="99" text-anchor="end" class="pcb-t">5V</text>
+      <path d="M286 95 H450" stroke="var(--wire-3v3)" stroke-width="3" fill="none"/>
+      <circle class="pin" cx="280" cy="125" r="6"/><text x="266" y="129" text-anchor="end" class="pcb-t">GND</text>
+      <path d="M286 125 H450" stroke="var(--wire-gnd)" stroke-width="3" fill="none"/>
+      <circle class="pin" cx="280" cy="180" r="6"/><text x="266" y="184" text-anchor="end" class="pcb-t">TX0</text>
+      <path d="M286 180 H450" stroke="var(--wire-a)" stroke-width="3" fill="none" stroke-dasharray="8 5"/>
+      <text x="442" y="175" text-anchor="end" font-size="11">RX</text>
+      <circle class="pin" cx="280" cy="210" r="6"/><text x="266" y="214" text-anchor="end" class="pcb-t">RX0</text>
+      <path d="M286 210 H450" stroke="var(--wire-b)" stroke-width="3" fill="none" stroke-dasharray="8 5"/>
+      <text x="442" y="205" text-anchor="end" font-size="11">TX</text>
+      <circle class="pin" cx="280" cy="240" r="6"/><text x="266" y="244" text-anchor="end" class="pcb-t">IO0</text>
+      <path d="M286 240 H450" stroke="var(--wire-gnd)" stroke-width="3" fill="none" stroke-dasharray="8 5"/>
+      <text x="442" y="235" text-anchor="end" font-size="11">GND</text>
+      </svg>
+  </div>
+  <div class="tw"><table>
+    <thead><tr><th>Fil</th><th>WT32-ETH01</th><th>Vers</th><th>Quand</th></tr></thead>
+    <tbody>
+      <tr><td><span class="sw" style="background:var(--wire-3v3)"></span>Alim.</td><td><code>5V</code></td><td>5 V d'un chargeur USB ou de l'adaptateur</td><td>Toujours</td></tr>
+      <tr><td><span class="sw" style="background:var(--wire-gnd)"></span>Masse</td><td><code>GND</code></td><td>GND</td><td>Toujours</td></tr>
+      <tr><td><span class="sw" style="background:var(--wire-a)"></span>Données</td><td><code>TX0</code></td><td><code>RX</code> de l'adaptateur USB-série</td><td>Pour téléverser et lire le Moniteur série</td></tr>
+      <tr><td><span class="sw" style="background:var(--wire-b)"></span>Données</td><td><code>RX0</code></td><td><code>TX</code> de l'adaptateur</td><td>Pour téléverser</td></tr>
+      <tr><td><span class="sw" style="background:var(--wire-gnd)"></span>Mode flash</td><td><code>IO0</code></td><td><code>GND</code></td><td>Seulement pendant le téléversement : branché avant la mise sous tension, retiré ensuite</td></tr>
+    </tbody>
+  </table></div>
+  <p>Le WT32-ETH01 n'a pas de port USB. Pour le programmer, il faut un adaptateur USB-série réglé en 3,3 V (CP2102, CH340, FTDI). Relier IO0 à GND, brancher l'alimentation, téléverser, puis retirer le fil IO0 et redémarrer. Le câble RJ45 va directement à l'ATEM ou au switch réseau de la régie. La carte prend l'adresse fixe <code>192.168.2.52</code> : changez <code>IP_EMETTEUR</code> en haut du code si elle est déjà prise.</p>
+</section>
+
+<section>
+  <h2>Chaque tally (caméras 1 à 8)</h2>
+  <p>Même câblage que les lampes de l'établi. Une seule LED est allumée à la fois, par priorité bleu, puis rouge, puis vert.</p>
+  <div class="fig">
+    <svg viewBox="0 0 720 230" role="img" aria-label="ESP32 D18, D19, D21 vers résistances et LED rouge, verte, bleue vers GND">
+      <rect class="pcb" x="20" y="20" width="200" height="190" rx="8"/>
+      <text x="120" y="50" text-anchor="middle" class="pcb-t">ESP32 DevKit V1</text>
+      <text x="120" y="68" text-anchor="middle" class="pcb-t" font-weight="400">tally_camN</text>
+      <circle class="pin" cx="220" cy="95" r="6"/><text x="206" y="99" text-anchor="end" class="pcb-t">D18</text>
+      <circle class="pin" cx="220" cy="135" r="6"/><text x="206" y="139" text-anchor="end" class="pcb-t">D19</text>
+      <circle class="pin" cx="220" cy="175" r="6"/><text x="206" y="179" text-anchor="end" class="pcb-t">D21</text>
+      <circle class="pin" cx="120" cy="210" r="6"/><text x="120" y="198" text-anchor="middle" class="pcb-t">GND</text>
+      <g stroke="var(--fg)" stroke-width="2" fill="none">
+        <path d="M226 95 H300"/><path d="M226 135 H300"/><path d="M226 175 H300"/>
+        <rect x="300" y="87" width="60" height="16" fill="var(--surface)"/><rect x="300" y="127" width="60" height="16" fill="var(--surface)"/><rect x="300" y="167" width="60" height="16" fill="var(--surface)"/>
+        <path d="M360 95 H420"/><path d="M360 135 H420"/><path d="M360 175 H420"/>
+        <path d="M444 95 H560 V222 H120 V216"/><path d="M444 135 H560"/><path d="M444 175 H560"/>
+      </g>
+      <text x="330" y="80" text-anchor="middle">120 Ω</text><text x="330" y="120" text-anchor="middle">47 Ω</text><text x="330" y="160" text-anchor="middle">33 Ω</text>
+      <path d="M420 85 L444 95 L420 105 Z" style="fill:#e03131"/><line x1="444" y1="85" x2="444" y2="105" stroke="var(--fg)" stroke-width="2"/>
+      <path d="M420 125 L444 135 L420 145 Z" style="fill:#2f9e44"/><line x1="444" y1="125" x2="444" y2="145" stroke="var(--fg)" stroke-width="2"/>
+      <path d="M420 165 L444 175 L420 185 Z" style="fill:#1c7ed6"/><line x1="444" y1="165" x2="444" y2="185" stroke="var(--fg)" stroke-width="2"/>
+      <text x="580" y="99">rouge · PGM</text><text x="580" y="139">verte · PVW</text><text x="580" y="179">bleue · liaison</text>
+    </svg>
+  </div>
+  <p>La patte longue (anode) de chaque LED va du côté de la résistance, la patte courte (cathode) vers GND.</p>
+  <div class="tw"><table>
+    <thead><tr><th>LED</th><th>Signification</th></tr></thead>
+    <tbody>
+      <tr><td>Bleue fixe</td><td>Plus aucune trame reçue depuis 2 s</td></tr>
+      <tr><td>Bleue clignotante</td><td>L'émetteur répond, mais il n'a plus l'ATEM (câble réseau ou ATEM éteint)</td></tr>
+      <tr><td>Rouge</td><td>Caméra au programme</td></tr>
+      <tr><td>Verte</td><td>Caméra en preview</td></tr>
+      <tr><td>Tout éteint</td><td>Caméra hors antenne</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <h2>Quel code sur quelle carte</h2>
+  <div class="tw"><table>
+    <thead><tr><th>Où</th><th>Fichier</th><th>Remarque</th></tr></thead>
+    <tbody>
+      <tr><td>WT32-ETH01 émetteur</td><td><code>emetteur_wt32eth01.ino</code></td><td>Le même que la version complète. Aucune bibliothèque, téléversé par l'adaptateur USB-série</td></tr>
+      <tr><td>Tally caméra N</td><td><code>tally_camN.ino</code> (N de 1 à 8)</td><td>La caméra suivie est fixée dans le fichier (<code>CAM = N</code>)</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <h2>Vérifier dans l'ordre</h2>
+  <ol>
+    <li>Moniteur série de l'émetteur à 115200, par l'adaptateur USB-série : « Ethernet prêt », « Câble réseau branché », puis « Connecté à l'ATEM ». Si « Câble réseau branché » n'apparaît pas, vérifiez le câble et le voyant du RJ45.</li>
+    <li>Ensuite, une ligne par M/E à chaque changement, par exemple <code>M/E 1 PGM 1 PVW 2 | M/E 2 PGM 5 PVW 6</code>, puis <code>Tally : 1:PGM 2:PVW 5:PGM 6:PVW</code>. La LED reliée à IO2 s'éteint, si vous en avez câblé une.</li>
+    <li>Au démarrage d'un tally, rouge, vert puis bleu s'allument chacun 300 ms pour tester le câblage. Ensuite la LED suit l'ATEM.</li>
+  </ol>
+</section>
+</main>
