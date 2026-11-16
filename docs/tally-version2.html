@@ -1,0 +1,500 @@
+<title>Tally version 2</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+/* Layout : une colonne de lecture, chaque schéma dans sa propre zone défilable, fiches broche à broche en tableaux. */
+:root {
+  --bg: #f5f7f6; --surface: #ffffff; --fg: #17201d; --muted: #5b6763; --line: #c9d2ce;
+  --pcb: #1f5a45; --pcb-ink: #e9f3ee; --wire-a: #d9480f; --wire-b: #1c7ed6; --wire-gnd: #343a40; --wire-3v3: #c2255c;
+  --usb: #6741d9; --radio: #0c8599; --seg: #e03131; --dip: #1971c2;
+  --sans: "IBM Plex Sans", system-ui, sans-serif; --mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #111614; --surface: #1a211e; --fg: #e3ebe7; --muted: #9aa8a2; --line: #34403b;
+  --pcb: #2a7a5e; --pcb-ink: #f0f8f4; --wire-a: #ff7a3d; --wire-b: #4dabf7; --wire-gnd: #adb5bd; --wire-3v3: #f06595;
+  --usb: #9775fa; --radio: #3bc9db; --seg: #ff6b6b; --dip: #4dabf7; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #111614; --surface: #1a211e; --fg: #e3ebe7; --muted: #9aa8a2; --line: #34403b;
+  --pcb: #2a7a5e; --pcb-ink: #f0f8f4; --wire-a: #ff7a3d; --wire-b: #4dabf7; --wire-gnd: #adb5bd; --wire-3v3: #f06595;
+  --usb: #9775fa; --radio: #3bc9db; --seg: #ff6b6b; --dip: #4dabf7; color-scheme: dark }
+body { background: var(--bg); color: var(--fg); font: 16px/1.55 var(--sans); }
+main { max-width: 900px; margin: 0 auto; padding-block: 32px 64px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 40px; }
+h1 { font-size: 1.9rem; line-height: 1.2; margin: 0 0 8px; text-wrap: balance; }
+h2 { font-size: 1.3rem; margin: 0 0 12px; text-wrap: balance; }
+p { margin: 0 0 12px; max-width: 65ch; }
+.lead { color: var(--muted); }
+section { min-width: 0; display: grid; gap: 12px; }
+section > * { margin-bottom: 0; }
+.fig { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 12px; }
+.fig svg { display: block; min-width: 640px; width: 100%; height: auto; }
+svg text { font-family: var(--mono); fill: var(--fg); font-size: 12px; }
+svg .pcb { fill: var(--pcb); }
+svg .pcb-t { fill: var(--pcb-ink); font-weight: 600; }
+svg .pin { fill: var(--surface); stroke: var(--pcb-ink); stroke-width: 1.2; }
+svg .muted { fill: var(--muted); }
+svg .box { fill: var(--surface); stroke: var(--fg); stroke-width: 1.5; }
+.tw { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 0.95rem; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; }
+td code, p code, li code { font-family: var(--mono); font-size: 0.9em; }
+.sw { display: inline-block; width: 22px; height: 4px; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
+ol, ul { margin: 0; padding-left: 1.3em; display: grid; gap: 6px; max-width: 70ch; }
+.note { border-left: 3px solid var(--wire-a); padding: 8px 12px; background: var(--surface); }
+.sch svg text { font-size: 11px; }
+svg .trait { stroke: var(--fg); stroke-width: 1.6; fill: none; }
+svg .ic { fill: var(--surface); stroke: var(--fg); stroke-width: 1.8; }
+svg .net { fill: var(--muted); font-size: 10px; }
+svg .dot { fill: var(--fg); }
+.sticker { display: inline-flex; align-items: center; gap: 8px; border: 2px solid var(--fg); border-radius: 6px; padding: 4px 10px; font-family: var(--mono); font-weight: 600; }
+</style>
+
+<main>
+<header>
+  <h1>Tally version 2</h1>
+  <p class="lead">La version 1, avec des réglages sur les boîtiers. L'émetteur WT32-ETH01 a 4 interrupteurs pour choisir les M/E suivies. Chaque tally ESP32-C3 a un afficheur 7 segments qui montre l'entrée SDI lue (« In 7 ») et deux boutons + et − pour la changer, sans reprogrammer. Tous les tallys ont le même code. Émetteur et tallys sont sur accus ou piles, avec un TPS63020.</p>
+</header>
+
+<section>
+  <h2>Vue d'ensemble</h2>
+  <div class="fig">
+    <svg viewBox="0 0 860 200" role="img" aria-label="ATEM en RJ45 vers le boîtier émetteur WT32-ETH01, radio vers 8 boîtiers tally ESP32-C3">
+      <rect class="box" x="10" y="65" width="150" height="60" rx="6"/>
+      <text x="85" y="90" text-anchor="middle" font-weight="600">ATEM 2 M/E</text>
+      <text x="85" y="108" text-anchor="middle" class="muted">192.168.2.20</text>
+      <line x1="160" y1="95" x2="330" y2="95" stroke="var(--usb)" stroke-width="4"/>
+      <text x="245" y="85" text-anchor="middle" style="fill:var(--usb)">câble RJ45</text>
+      <rect class="box" x="330" y="45" width="210" height="100" rx="10" stroke-dasharray="5 4"/>
+      <rect class="pcb" x="350" y="62" width="170" height="66" rx="6"/>
+      <text x="435" y="90" text-anchor="middle" class="pcb-t">WT32-ETH01</text>
+      <text x="435" y="108" text-anchor="middle" class="pcb-t" font-weight="400">+ interrupteurs M/E</text>
+      <text x="435" y="164" text-anchor="middle" class="muted">boîtier émetteur</text>
+      <path d="M555 80 q12 15 0 30 M568 70 q20 25 0 50 M581 60 q28 35 0 70" fill="none" stroke="var(--radio)" stroke-width="2.5"/>
+      <text x="720" y="22" text-anchor="middle" style="fill:var(--radio)">ESP-NOW canal 1, maillé</text>
+      <g>
+        <rect class="box" x="630" y="36" width="100" height="40" rx="8"/><circle cx="650" cy="56" r="8" fill="#e03131"/><text x="692" y="60" text-anchor="middle" font-size="11">« In 1 »</text>
+        <rect class="box" x="745" y="36" width="100" height="40" rx="8"/><circle cx="765" cy="56" r="8" fill="#2f9e44"/><text x="807" y="60" text-anchor="middle" font-size="11">« In 2 »</text>
+        <rect class="box" x="630" y="86" width="100" height="40" rx="8"/><circle cx="650" cy="106" r="8" style="fill:var(--line)"/><text x="692" y="110" text-anchor="middle" font-size="11">« In 3 »</text>
+        <rect class="box" x="745" y="86" width="100" height="40" rx="8"/><circle cx="765" cy="106" r="8" style="fill:var(--line)"/><text x="807" y="110" text-anchor="middle" font-size="11">« In12 »</text>
+      </g>
+      <text x="737" y="150" text-anchor="middle" class="muted">ESP32-C3 + WS2812B</text>
+      <text x="737" y="168" text-anchor="middle" class="muted">entrée réglée aux boutons</text>
+    </svg>
+  </div>
+  <p>Une entrée est rouge si elle est au programme de l'une des M/E choisies par les interrupteurs de l'émetteur (clés DVE, SuperSource et multiview compris), sinon verte si elle est en preview. Les tallys se relaient la trame entre eux : un tally loin de l'émetteur la reçoit par ses voisins.</p>
+</section>
+
+<section>
+  <h2>Boîtier émetteur : câblage</h2>
+  <div class="fig">
+    <svg viewBox="0 0 900 400" role="img" aria-label="WT32-ETH01 alimenté par piles via TPS63020 ou par une embase 5 V, RJ45 vers l'ATEM, LED de statut facultative, connecteur de programmation">
+      <rect class="box" x="10" y="10" width="880" height="380" rx="12" stroke-dasharray="6 5"/>
+      <text x="24" y="32" class="muted">boîtier émetteur</text>
+      <!-- piles + TPS -->
+      <rect x="30" y="60" width="100" height="120" rx="6" style="fill:var(--surface)" stroke="var(--fg)" stroke-width="2"/>
+      <text x="80" y="52" text-anchor="middle" font-weight="600">2 × 18650</text>
+      <g style="fill:var(--line)"><rect x="42" y="75" width="76" height="38" rx="6"/><rect x="42" y="125" width="76" height="38" rx="6"/></g>
+      <text x="80" y="98" text-anchor="middle" font-size="11">+ 18650 −</text><text x="80" y="148" text-anchor="middle" font-size="11">+ 18650 −</text>
+      <text x="80" y="196" text-anchor="middle" class="muted" font-size="11">en parallèle</text>
+      <path d="M130 90 H150" stroke="var(--wire-3v3)" stroke-width="3" fill="none"/>
+      <circle cx="152" cy="90" r="3" class="dot"/><path d="M154 90 L174 78" stroke="var(--fg)" stroke-width="2.5"/><circle cx="178" cy="90" r="3" class="dot"/>
+      <text x="165" y="68" text-anchor="middle" font-size="11">SW1</text>
+      <path d="M181 90 H200 V110 H210" stroke="var(--wire-3v3)" stroke-width="3" fill="none"/>
+      <path d="M130 160 H210" stroke="var(--wire-gnd)" stroke-width="3" fill="none"/>
+      <rect x="210" y="70" width="110" height="115" rx="6" style="fill:var(--dip)"/>
+      <text x="265" y="92" text-anchor="middle" class="pcb-t">TPS63020</text>
+      <text x="265" y="106" text-anchor="middle" class="pcb-t" font-weight="400" font-size="10">5 V</text>
+      <text x="218" y="130" class="pcb-t" font-size="10">VIN</text><text x="218" y="164" class="pcb-t" font-size="10">GND</text>
+      <text x="312" y="130" text-anchor="end" class="pcb-t" font-size="10">VOUT</text><text x="312" y="164" text-anchor="end" class="pcb-t" font-size="10">GND</text>
+      <path d="M320 126 H350" stroke="var(--wire-3v3)" stroke-width="3" fill="none"/>
+      <path d="M350 116 L370 126 L350 136 Z" style="fill:var(--fg)"/><path d="M370 115 V137" stroke="var(--fg)" stroke-width="2.5"/>
+      <text x="360" y="110" text-anchor="middle" font-size="11">D2</text>
+      <path d="M370 126 H400 V150 H450" stroke="var(--wire-3v3)" stroke-width="3" fill="none"/>
+      <path d="M320 160 H410 V190 H450" stroke="var(--wire-gnd)" stroke-width="3" fill="none"/>
+      <!-- embase -->
+      <rect class="box" x="30" y="230" width="150" height="70" rx="6"/>
+      <text x="105" y="256" text-anchor="middle" font-weight="600">Embase 5 V</text>
+      <text x="105" y="274" text-anchor="middle" class="muted" font-size="11">USB-C ou jack</text>
+      <text x="105" y="290" text-anchor="middle" class="muted" font-size="11">(secteur, facultatif)</text>
+      <path d="M180 250 H350" stroke="var(--wire-3v3)" stroke-width="3" fill="none"/>
+      <path d="M350 240 L370 250 L350 260 Z" style="fill:var(--fg)"/><path d="M370 239 V261" stroke="var(--fg)" stroke-width="2.5"/>
+      <text x="360" y="234" text-anchor="middle" font-size="11">D3</text>
+      <path d="M370 250 H400 V150" stroke="var(--wire-3v3)" stroke-width="3" fill="none"/>
+      <circle cx="400" cy="150" r="4" class="dot"/>
+      <path d="M180 285 H410 V190" stroke="var(--wire-gnd)" stroke-width="3" fill="none"/>
+      <circle cx="410" cy="190" r="4" class="dot"/>
+      <!-- WT32 -->
+      <rect class="pcb" x="450" y="50" width="200" height="290" rx="8"/>
+      <text x="550" y="78" text-anchor="middle" class="pcb-t">WT32-ETH01</text>
+      <rect x="510" y="270" width="80" height="50" rx="3" style="fill:var(--pcb-ink)"/><text x="550" y="300" text-anchor="middle" font-size="12" style="fill:var(--pcb)">RJ45</text>
+      <path d="M550 320 V398" stroke="var(--usb)" stroke-width="5"/>
+      <text x="562" y="372" font-size="11" style="fill:var(--usb)">vers l'ATEM (traversée RJ45)</text>
+      <circle class="pin" cx="450" cy="150" r="6"/><text x="464" y="154" class="pcb-t">5V</text>
+      <circle class="pin" cx="450" cy="190" r="6"/><text x="464" y="194" class="pcb-t">GND</text>
+      <circle class="pin" cx="650" cy="260" r="6"/><text x="636" y="264" text-anchor="end" class="pcb-t">IO2</text>
+      <path d="M656 260 H680" stroke="var(--wire-a)" stroke-width="3" fill="none"/>
+      <rect x="680" y="252" width="30" height="16" style="fill:var(--surface)" stroke="var(--fg)" stroke-width="2"/>
+      <path d="M710 260 H730 V290" stroke="var(--fg)" stroke-width="2" fill="none"/>
+      <path d="M720 290 L730 310 L740 290 Z" fill="#1c7ed6"/><path d="M720 310 H740" stroke="var(--fg)" stroke-width="2"/>
+      <path d="M730 310 V325 M720 325 H740 M724 330 H736 M728 335 H732" stroke="var(--fg)" stroke-width="2" fill="none"/>
+      <text x="750" y="305" font-size="11">LED + 330 Ω</text><text x="750" y="319" class="muted" font-size="11">(facultative)</text>
+      <!-- J2 -->
+      <circle class="pin" cx="650" cy="130" r="6"/><text x="636" y="134" text-anchor="end" class="pcb-t">TX0</text>
+      <circle class="pin" cx="650" cy="160" r="6"/><text x="636" y="164" text-anchor="end" class="pcb-t">RX0</text>
+      <circle class="pin" cx="650" cy="190" r="6"/><text x="636" y="194" text-anchor="end" class="pcb-t">IO0</text>
+      <circle class="pin" cx="650" cy="220" r="6"/><text x="636" y="224" text-anchor="end" class="pcb-t">GND</text>
+      <g stroke-width="3" fill="none">
+        <path d="M656 130 H740" stroke="var(--wire-a)"/><path d="M656 160 H740" stroke="var(--wire-b)"/>
+        <path d="M656 190 H740" stroke="var(--wire-gnd)" stroke-dasharray="7 4"/><path d="M656 220 H740" stroke="var(--wire-gnd)"/>
+      </g>
+      <rect class="box" x="740" y="110" width="40" height="130" rx="3"/>
+      <text x="760" y="102" text-anchor="middle" font-size="11">J2</text>
+      <text x="790" y="134" font-size="11">TX0</text><text x="790" y="164" font-size="11">RX0</text><text x="790" y="194" font-size="11">IO0</text><text x="790" y="224" font-size="11">GND</text>
+      <text x="830" y="104" text-anchor="middle" class="muted" font-size="11">programmation</text>
+    </svg>
+  </div>
+  <div class="tw"><table>
+    <thead><tr><th>Liaison</th><th>WT32-ETH01</th><th>Vers</th></tr></thead>
+    <tbody>
+      <tr><td><span class="sw" style="background:var(--wire-3v3)"></span>Piles</td><td><code>5V</code></td><td>Accus → interrupteur SW1 → <code>VIN</code> du TPS63020 (réglé sur 5 V). <code>VOUT</code> → diode D2 1N5817 (bague côté WT32) → <code>5V</code></td></tr>
+      <tr><td><span class="sw" style="background:var(--wire-3v3)"></span>Secteur (facultatif)</td><td><code>5V</code></td><td>Embase USB-C ou jack 5 V → diode D3 1N5817 → <code>5V</code>. Chargeur 5 V 1 A</td></tr>
+      <tr><td><span class="sw" style="background:var(--wire-gnd)"></span>Masse</td><td><code>GND</code></td><td><code>GND</code> du TPS63020, <code>−</code> des accus et masse de l'embase</td></tr>
+      <tr><td><span class="sw" style="background:var(--usb)"></span>Réseau</td><td>RJ45 intégré</td><td>Traversée de cloison RJ45, puis câble vers l'ATEM ou le switch de la régie</td></tr>
+      <tr><td><span class="sw" style="background:var(--wire-a)"></span>LED de façade</td><td><code>IO2</code></td><td>330 Ω puis LED, cathode à GND. Allumée = pas d'ATEM. Facultative.</td></tr>
+      <tr><td>Programmation</td><td><code>TX0</code>, <code>RX0</code>, <code>IO0</code>, <code>GND</code></td><td>Connecteur J2 à 4 broches, à l'intérieur du boîtier</td></tr>
+    </tbody>
+  </table></div>
+  <p><strong>Alimentation sur piles.</strong> Le WT32-ETH01 consomme plus qu'un tally, car sa puce Ethernet tourne en permanence : environ 1,3 W. Deux accus 18650 protégés montés en parallèle (3 à 4,2 V, même tension, jamais un plein avec un vide) donnent environ 15 h ; trois piles AA NiMH environ 5 h. Comme pour les tallys, jamais plus de 5,5 V à l'entrée du TPS63020 : pas de 4 piles AA. Les diodes D2 et D3 permettent de brancher l'embase secteur sans retirer les accus : la source la plus haute alimente la carte, et aucune ne renvoie de courant dans l'autre.</p>
+  <h3 style="margin:8px 0 0;font-size:1.05rem">Interrupteurs de M/E (SW2)</h3>
+  <div class="fig">
+    <svg viewBox="0 0 640 260" role="img" aria-label="Interrupteur DIP 4 positions sur IO4, IO14, IO32, IO33, commun à GND">
+      <rect x="40" y="45" width="110" height="160" rx="6" style="fill:var(--dip)"/>
+      <text x="95" y="36" text-anchor="middle" font-weight="600">SW2 · DIP M/E</text>
+      <g>
+        <rect x="80" y="56" width="40" height="18" rx="3" style="fill:var(--surface)"/><rect x="102" y="59" width="15" height="12" rx="2" style="fill:var(--fg)"/>
+        <rect x="80" y="96" width="40" height="18" rx="3" style="fill:var(--surface)"/><rect x="83" y="99" width="15" height="12" rx="2" style="fill:var(--fg)"/>
+        <rect x="80" y="136" width="40" height="18" rx="3" style="fill:var(--surface)"/><rect x="83" y="139" width="15" height="12" rx="2" style="fill:var(--fg)"/>
+        <rect x="80" y="176" width="40" height="18" rx="3" style="fill:var(--surface)"/><rect x="83" y="179" width="15" height="12" rx="2" style="fill:var(--fg)"/>
+      </g>
+      <text x="62" y="69" text-anchor="middle" class="pcb-t">1</text><text x="62" y="109" text-anchor="middle" class="pcb-t">2</text>
+      <text x="62" y="149" text-anchor="middle" class="pcb-t">3</text><text x="62" y="189" text-anchor="middle" class="pcb-t">4</text>
+      <g stroke-width="3" fill="none">
+        <path d="M150 65 H400" stroke="var(--wire-a)"/><path d="M150 105 H400" stroke="var(--wire-b)"/>
+        <path d="M150 145 H400" stroke="var(--wire-a)"/><path d="M150 185 H400" stroke="var(--wire-b)"/>
+        <path d="M40 65 H24 M40 105 H24 M40 145 H24 M40 185 H24 M24 65 V230 H400" stroke="var(--wire-gnd)"/>
+      </g>
+      <text x="270" y="58" text-anchor="middle" font-size="11">M/E 1</text><text x="270" y="98" text-anchor="middle" font-size="11">M/E 2</text>
+      <text x="270" y="138" text-anchor="middle" font-size="11">M/E 3</text><text x="270" y="178" text-anchor="middle" font-size="11">M/E 4</text>
+      <text x="40" y="250" class="muted" font-size="11">commun des 4 interrupteurs → GND</text>
+      <rect class="pcb" x="400" y="30" width="200" height="220" rx="8"/>
+      <text x="500" y="50" text-anchor="middle" class="pcb-t">WT32-ETH01</text>
+      <circle class="pin" cx="400" cy="65" r="6"/><text x="414" y="69" class="pcb-t">IO4</text>
+      <circle class="pin" cx="400" cy="105" r="6"/><text x="414" y="109" class="pcb-t">IO14</text>
+      <circle class="pin" cx="400" cy="145" r="6"/><text x="414" y="149" class="pcb-t">IO32 (CFG)</text>
+      <circle class="pin" cx="400" cy="185" r="6"/><text x="414" y="189" class="pcb-t">IO33 (485_EN)</text>
+      <circle class="pin" cx="400" cy="230" r="6"/><text x="414" y="234" class="pcb-t">GND</text>
+    </svg>
+  </div>
+  <p>Un interrupteur DIP à 4 positions, accessible sur le côté du boîtier. Chaque broche a sa résistance de tirage interne : il suffit de relier l'autre côté des interrupteurs à GND. Sur ON, la M/E est suivie. Tous sur OFF revient à suivre toutes les M/E. Le changement est pris en compte tout de suite. Ne jamais utiliser IO12 : tiré à 3,3 V au démarrage, il empêche la carte de démarrer.</p>
+  <p>Pour téléverser : adaptateur USB-série 3,3 V sur J2 (son RX sur TX0, son TX sur RX0, GND), un cavalier entre IO0 et GND, puis mise sous tension. Après le téléversement, retirer le cavalier et redémarrer.</p>
+</section>
+
+<section>
+  <h2>Boîtier tally : câblage</h2>
+  <div class="fig">
+    <svg viewBox="0 0 900 470" role="img" aria-label="Piles, interrupteur, TPS63020, diode, ESP32-C3, LED WS2812B, afficheur TM1637 et deux boutons">
+      <rect class="box" x="10" y="10" width="880" height="450" rx="12" stroke-dasharray="6 5"/>
+      <text x="24" y="32" class="muted">boîtier tally</text>
+      <rect x="30" y="70" width="110" height="150" rx="6" style="fill:var(--surface)" stroke="var(--fg)" stroke-width="2"/>
+      <text x="85" y="62" text-anchor="middle" font-weight="600">3 × AA</text>
+      <g style="fill:var(--line)"><rect x="45" y="85" width="80" height="30" rx="4"/><rect x="45" y="128" width="80" height="30" rx="4"/><rect x="45" y="171" width="80" height="30" rx="4"/></g>
+      <text x="85" y="105" text-anchor="middle" font-size="11">+ AA −</text><text x="85" y="148" text-anchor="middle" font-size="11">+ AA −</text><text x="85" y="191" text-anchor="middle" font-size="11">+ AA −</text>
+      <text x="85" y="240" text-anchor="middle" class="muted" font-size="11">ou 1 × 18650</text>
+      <path d="M140 110 H165" stroke="var(--wire-3v3)" stroke-width="3" fill="none"/>
+      <circle cx="168" cy="110" r="3" class="dot"/><path d="M170 110 L192 98" stroke="var(--fg)" stroke-width="2.5"/><circle cx="196" cy="110" r="3" class="dot"/>
+      <text x="182" y="88" text-anchor="middle" font-size="11">SW1</text>
+      <path d="M199 110 H215 V146 H230" stroke="var(--wire-3v3)" stroke-width="3" fill="none"/>
+      <path d="M140 200 H230" stroke="var(--wire-gnd)" stroke-width="3" fill="none"/>
+      <rect x="230" y="80" width="130" height="150" rx="6" style="fill:var(--dip)"/>
+      <text x="295" y="104" text-anchor="middle" class="pcb-t">TPS63020</text>
+      <text x="295" y="120" text-anchor="middle" class="pcb-t" font-weight="400" font-size="11">réglé sur 5 V</text>
+      <text x="240" y="150" class="pcb-t" font-size="10">VIN</text><text x="240" y="204" class="pcb-t" font-size="10">GND</text>
+      <text x="350" y="150" text-anchor="end" class="pcb-t" font-size="10">VOUT</text><text x="350" y="204" text-anchor="end" class="pcb-t" font-size="10">GND</text>
+      <path d="M360 146 H395" stroke="var(--wire-3v3)" stroke-width="3" fill="none"/>
+      <path d="M395 136 L415 146 L395 156 Z" style="fill:var(--fg)"/><path d="M415 135 V157" stroke="var(--fg)" stroke-width="2.5"/>
+      <text x="405" y="128" text-anchor="middle" font-size="11">D2 1N5817</text>
+      <path d="M415 146 H450 V165 H470" stroke="var(--wire-3v3)" stroke-width="3" fill="none"/>
+      <path d="M360 200 H440 V205 H470" stroke="var(--wire-gnd)" stroke-width="3" fill="none"/>
+      <rect class="pcb" x="470" y="60" width="170" height="370" rx="8"/>
+      <text x="555" y="88" text-anchor="middle" class="pcb-t">ESP32-C3</text>
+      <text x="555" y="104" text-anchor="middle" class="pcb-t" font-weight="400">Super Mini</text>
+      <rect x="530" y="420" width="50" height="22" rx="4" style="fill:var(--usb)"/><text x="470" y="452" class="muted" font-size="10">USB-C (téléversement)</text>
+      <circle class="pin" cx="470" cy="165" r="6"/><text x="484" y="169" class="pcb-t">5V</text>
+      <circle class="pin" cx="470" cy="205" r="6"/><text x="484" y="209" class="pcb-t">GND</text>
+      <circle class="pin" cx="640" cy="125" r="6"/><text x="626" y="129" text-anchor="end" class="pcb-t">GPIO4</text>
+      <circle class="pin" cx="640" cy="165" r="6"/><text x="626" y="169" text-anchor="end" class="pcb-t">5V</text>
+      <circle class="pin" cx="640" cy="205" r="6"/><text x="626" y="209" text-anchor="end" class="pcb-t">GND</text>
+      <path d="M646 125 H680" stroke="var(--wire-a)" stroke-width="3" fill="none"/>
+      <rect x="680" y="117" width="40" height="16" style="fill:var(--surface)" stroke="var(--fg)" stroke-width="2"/>
+      <text x="700" y="110" text-anchor="middle" font-size="11">330 Ω</text>
+      <path d="M720 125 H760" stroke="var(--wire-a)" stroke-width="3" fill="none"/>
+      <path d="M646 165 H760" stroke="var(--wire-3v3)" stroke-width="3" fill="none"/>
+      <path d="M646 205 H760" stroke="var(--wire-gnd)" stroke-width="3" fill="none"/>
+      <circle cx="735" cy="165" r="4" class="dot"/><circle cx="735" cy="205" r="4" class="dot"/>
+      <path d="M735 165 V180 M723 180 H747 M723 188 H747 M735 188 V205" stroke="var(--fg)" stroke-width="2" fill="none"/>
+      <text x="676" y="196" font-size="11">C1</text>
+      <rect x="760" y="95" width="110" height="130" rx="6" style="fill:var(--surface)" stroke="var(--fg)" stroke-width="2"/>
+      <rect x="795" y="140" width="50" height="50" rx="4" style="fill:var(--line)"/>
+      <circle cx="820" cy="165" r="14" fill="#e03131" opacity="0.85"/>
+      <text x="815" y="114" text-anchor="middle" font-weight="600">WS2812B</text>
+      <text x="766" y="129" font-size="10">DIN</text><text x="766" y="169" font-size="10">VDD</text><text x="766" y="209" font-size="10">GND</text>
+      <!-- afficheur -->
+      <circle class="pin" cx="640" cy="260" r="6"/><text x="626" y="264" text-anchor="end" class="pcb-t">GPIO5</text>
+      <circle class="pin" cx="640" cy="285" r="6"/><text x="626" y="289" text-anchor="end" class="pcb-t">GPIO6</text>
+      <circle class="pin" cx="640" cy="310" r="6"/><text x="626" y="314" text-anchor="end" class="pcb-t">3V3</text>
+      <circle class="pin" cx="640" cy="335" r="6"/><text x="626" y="339" text-anchor="end" class="pcb-t">GND</text>
+      <g stroke-width="3" fill="none">
+        <path d="M646 260 H760" stroke="var(--wire-a)"/><path d="M646 285 H760" stroke="var(--wire-b)"/>
+        <path d="M646 310 H760" stroke="var(--wire-3v3)"/><path d="M646 335 H760" stroke="var(--wire-gnd)"/>
+      </g>
+      <rect x="760" y="245" width="110" height="105" rx="6" style="fill:var(--pcb)"/>
+      <rect x="768" y="252" width="94" height="34" rx="3" fill="#111"/>
+      <text x="815" y="276" text-anchor="middle" font-size="19" font-weight="600" style="fill:var(--seg)">In 7</text>
+      <text x="815" y="300" text-anchor="middle" class="pcb-t" font-size="10">TM1637</text>
+      <text x="766" y="264" class="pcb-t" font-size="9"></text>
+      <text x="815" y="340" text-anchor="middle" class="pcb-t" font-size="9">CLK DIO VCC GND</text>
+      <!-- boutons -->
+      <circle class="pin" cx="640" cy="375" r="6"/><text x="626" y="379" text-anchor="end" class="pcb-t">GPIO7</text>
+      <circle class="pin" cx="640" cy="405" r="6"/><text x="626" y="409" text-anchor="end" class="pcb-t">GPIO10</text>
+      <path d="M646 375 H730" stroke="var(--wire-a)" stroke-width="3" fill="none"/>
+      <path d="M646 405 H730" stroke="var(--wire-b)" stroke-width="3" fill="none"/>
+      <circle cx="730" cy="375" r="3.5" class="dot"/><circle cx="780" cy="375" r="3.5" class="dot"/>
+      <path d="M730 365 H780 M755 365 V357 M745 357 H765" stroke="var(--fg)" stroke-width="2.2" fill="none"/>
+      <circle cx="730" cy="405" r="3.5" class="dot"/><circle cx="780" cy="405" r="3.5" class="dot"/>
+      <path d="M730 395 H780 M755 395 V387 M745 387 H765" stroke="var(--fg)" stroke-width="2.2" fill="none"/>
+      <text x="792" y="379" font-size="11">bouton +</text><text x="792" y="409" font-size="11">bouton −</text>
+      <path d="M780 375 V440 H760 M780 405 H780" stroke="var(--wire-gnd)" stroke-width="2.5" fill="none"/>
+      <path d="M750 440 H770 M754 445 H766 M758 450 H762" stroke="var(--fg)" stroke-width="2" fill="none"/>
+    </svg>
+  </div>
+  <div class="tw"><table>
+    <thead><tr><th>Liaison</th><th>ESP32-C3 Super Mini</th><th>WS2812B</th></tr></thead>
+    <tbody>
+      <tr><td><span class="sw" style="background:var(--wire-a)"></span>Données</td><td><code>GPIO4</code>, par une résistance de 330 Ω</td><td><code>DIN</code></td></tr>
+      <tr><td><span class="sw" style="background:var(--wire-3v3)"></span>Alimentation</td><td><code>5V</code></td><td><code>VDD</code> (ou <code>5V</code>)</td></tr>
+      <tr><td><span class="sw" style="background:var(--wire-3v3)"></span>Piles</td><td colspan="2"><code>+</code> du support → interrupteur SW1 → <code>VIN</code> du TPS63020. <code>−</code> du support → <code>GND</code> du TPS63020</td></tr>
+      <tr><td><span class="sw" style="background:var(--wire-3v3)"></span>Sortie 5 V</td><td colspan="2"><code>VOUT</code> du TPS63020 → diode 1N5817 (bague côté ESP32) → <code>5V</code> de l'ESP32-C3. <code>GND</code> du TPS63020 → <code>GND</code> de l'ESP32-C3</td></tr>
+      <tr><td><span class="sw" style="background:var(--wire-gnd)"></span>Masse</td><td><code>GND</code></td><td><code>GND</code></td></tr>
+      <tr><td><span class="sw" style="background:var(--wire-a)"></span>Afficheur CLK</td><td><code>GPIO5</code></td><td><code>CLK</code> du TM1637</td></tr>
+      <tr><td><span class="sw" style="background:var(--wire-b)"></span>Afficheur DIO</td><td><code>GPIO6</code></td><td><code>DIO</code> du TM1637</td></tr>
+      <tr><td><span class="sw" style="background:var(--wire-3v3)"></span>Afficheur VCC</td><td><code>3V3</code></td><td><code>VCC</code> du TM1637 (pas le 5 V : il renverrait du 5 V sur les broches de l'ESP32-C3)</td></tr>
+      <tr><td><span class="sw" style="background:var(--wire-a)"></span>Bouton +</td><td><code>GPIO7</code></td><td>Bouton poussoir, l'autre patte à <code>GND</code></td></tr>
+      <tr><td><span class="sw" style="background:var(--wire-b)"></span>Bouton −</td><td><code>GPIO10</code></td><td>Bouton poussoir, l'autre patte à <code>GND</code></td></tr>
+      <tr><td>Condensateur</td><td colspan="2">100 µF entre <code>VDD</code> et <code>GND</code>, au plus près de la LED (le moins vers GND)</td></tr>
+    </tbody>
+  </table></div>
+  <p><strong>Alimentation sur piles.</strong> Le TPS63020 est un convertisseur abaisseur-élévateur : il sort 5 V stables que les piles soient neuves ou presque vides (il accepte de 1,8 à 5,5 V en entrée). Prenez un module TPS63020 en version 5 V, ou une version réglable mise sur 5 V avant de le brancher (vérifiez au multimètre). Côté piles :</p>
+  <ul>
+    <li><strong>3 piles AA</strong> : rechargeables NiMH (3,6 V) ou alcalines (4,5 V). Jamais 4 alcalines : 6 V dépasse les 5,5 V du TPS63020.</li>
+    <li><strong>ou 1 accu Li-ion 18650</strong> protégé (3 à 4,2 V), dans un support avec interrupteur.</li>
+  </ul>
+  <p>Autonomie, à environ 0,7 W par tally (ESP32-C3 qui écoute la radio en continu, LED allumée à 160 sur 255) : à peu près 10 h avec 3 AA NiMH de 2 000 mAh, 15 h avec un 18650 de 3 000 mAh. La diode D2 empêche l'USB-C de renvoyer du courant dans le TPS63020 : on peut brancher l'USB pour téléverser sans retirer les piles, mais mettez l'interrupteur sur OFF par sécurité.</p>
+  <div class="tw"><table>
+    <thead><tr><th>Bouton</th><th>Effet</th></tr></thead>
+    <tbody>
+      <tr><td>Appui court sur +</td><td>Entrée suivante : 1, 2, … 20, puis 1</td></tr>
+      <tr><td>Appui court sur −</td><td>Entrée précédente : 20 après 1</td></tr>
+      <tr><td>Appui maintenu</td><td>Les entrées défilent toutes seules</td></tr>
+      <tr><td>Relâché depuis 3 s</td><td>L'afficheur arrête de clignoter : l'entrée est enregistrée, même après une coupure</td></tr>
+    </tbody>
+  </table></div>
+  <p>Broches choisies pour l'ESP32-C3 Super Mini : GPIO2, GPIO8 et GPIO9 sont évitées car elles décident du mode de démarrage (GPIO9 est aussi le bouton BOOT), et GPIO20 et GPIO21 servent au port série. L'afficheur et les boutons ajoutent environ 10 à 20 mA : l'autonomie reste autour de 9 h avec 3 AA NiMH.</p>
+</section>
+
+<section class="sch">
+  <h2>Schéma électrique</h2>
+  <p>Émetteur. SW2 relie IO4, IO14, IO32 et IO33 à GND quand un interrupteur est sur ON (résistances de tirage internes à l'ESP32). Les accus passent par SW1 et le TPS63020 réglé sur 5 V. D2 et D3 (1N5817) laissent choisir entre accus et secteur sans que l'un renvoie du courant dans l'autre. F1 (fusible réarmable) et C1 protègent et stabilisent le rail 5 V.</p>
+  <div class="fig">
+    <svg viewBox="0 0 900 470" role="img" aria-label="Schéma électrique de l'émetteur">
+      <rect class="ic" x="20" y="50" width="60" height="100"/>
+      <text x="50" y="42" text-anchor="middle" font-weight="600">BT1</text>
+      <path d="M36 80 H64 M42 88 H58 M36 104 H64 M42 112 H58" class="trait"/>
+      <text x="74" y="74" text-anchor="end">+</text><text x="74" y="140" text-anchor="end">−</text>
+      <text x="50" y="166" text-anchor="middle" class="net">2 × 18650 //</text>
+      <path d="M80 70 H100"/><path d="M80 70 H100" class="trait"/>
+      <circle cx="102" cy="70" r="2.5" class="dot"/><path d="M104 70 L124 60" class="trait"/><circle cx="128" cy="70" r="2.5" class="dot"/>
+      <text x="115" y="52" text-anchor="middle">SW1</text>
+      <path d="M130 70 H170" class="trait"/>
+      <path d="M80 135 H170" class="trait"/>
+      <rect class="ic" x="170" y="50" width="110" height="110"/>
+      <text x="225" y="42" text-anchor="middle" font-weight="600">U2 TPS63020</text>
+      <text x="178" y="74">VIN</text><text x="178" y="100">EN</text><text x="178" y="139">GND</text>
+      <text x="272" y="74" text-anchor="end">VOUT</text><text x="272" y="139" text-anchor="end">GND</text>
+      <path d="M170 70 H158 V96 H170" class="trait"/><circle cx="158" cy="70" r="2.5" class="dot"/>
+      <text x="225" y="154" text-anchor="middle" class="net">module 5 V</text>
+      <path d="M280 70 H310" class="trait"/>
+      <path d="M310 62 L326 70 L310 78 Z" style="fill:var(--fg)"/><path d="M326 61 V79" class="trait"/>
+      <text x="318" y="54" text-anchor="middle">D2</text>
+      <path d="M326 70 H360 V200" class="trait"/>
+      <!-- J1 -->
+      <rect class="ic" x="20" y="210" width="90" height="80"/>
+      <text x="65" y="202" text-anchor="middle" font-weight="600">J1</text>
+      <text x="102" y="234" text-anchor="end">VBUS</text><text x="102" y="274" text-anchor="end">GND</text>
+      <text x="20" y="306" class="net">embase 5 V (facultative)</text>
+      <path d="M110 230 H310" class="trait"/>
+      <path d="M310 222 L326 230 L310 238 Z" style="fill:var(--fg)"/><path d="M326 221 V239" class="trait"/>
+      <text x="318" y="214" text-anchor="middle">D3</text>
+      <path d="M326 230 H360 V200" class="trait"/>
+      <circle cx="360" cy="200" r="3" class="dot"/>
+      <path d="M360 200 H400"/><path d="M360 200 H390" class="trait"/>
+      <rect x="390" y="194" width="34" height="12" class="trait" style="fill:var(--surface)"/><text x="407" y="188" text-anchor="middle">F1 1 A</text>
+      <path d="M424 200 H520" class="trait"/><text x="490" y="192" class="net">+5V</text>
+      <path d="M280 135 H380 V270 M110 270 H520" class="trait"/><circle cx="380" cy="270" r="3" class="dot"/>
+      <text x="490" y="262" class="net">GND</text>
+      <circle cx="460" cy="200" r="3" class="dot"/><circle cx="460" cy="270" r="3" class="dot"/>
+      <path d="M460 200 V228 M448 228 H472 M448 236 H472 M460 236 V270" class="trait"/>
+      <text x="466" y="252" font-size="10">C1</text>
+      <!-- U1 -->
+      <rect class="ic" x="520" y="150" width="180" height="290"/>
+      <text x="610" y="142" text-anchor="middle" font-weight="600">U1 WT32-ETH01</text>
+      <text x="530" y="204">5V</text><text x="530" y="274">GND</text><text x="530" y="314">IO2</text>
+      <text x="690" y="184" text-anchor="end">TX0</text><text x="690" y="214" text-anchor="end">RX0</text>
+      <text x="690" y="244" text-anchor="end">IO0</text><text x="690" y="274" text-anchor="end">GND</text>
+      <text x="610" y="430" text-anchor="middle" class="net">RJ45 intégré → ATEM</text>
+      <path d="M520 310 H490"/><path d="M520 310 H480" class="trait"/>
+      <rect x="440" y="304" width="40" height="12" class="trait" style="fill:var(--surface)"/><text x="460" y="298" text-anchor="middle">R1 330 Ω</text>
+      <path d="M440 310 H420" class="trait"/>
+      <path d="M420 302 L404 310 L420 318 Z" fill="#1c7ed6" stroke="var(--fg)" stroke-width="1.2"/><path d="M404 301 V319" class="trait"/>
+      <text x="412" y="336" text-anchor="middle">D1</text>
+      <path d="M404 310 H380 V326 M370 326 H390 M374 331 H386 M378 336 H382" class="trait"/>
+      <text x="330" y="314" class="net" text-anchor="middle">facultatif</text>
+      <g class="trait"><path d="M700 180 H780"/><path d="M700 210 H780"/><path d="M700 240 H780"/><path d="M700 270 H780"/></g>
+      <rect class="ic" x="780" y="165" width="80" height="120"/>
+      <text x="820" y="157" text-anchor="middle" font-weight="600">J2 programmation</text>
+      <text x="790" y="184">1 TX</text><text x="790" y="214">2 RX</text><text x="790" y="244">3 IO0</text><text x="790" y="274">4 GND</text>
+      
+          <text x="690" y="314" text-anchor="end">IO4</text><text x="690" y="344" text-anchor="end">IO14</text>
+      <text x="690" y="374" text-anchor="end">IO32</text><text x="690" y="404" text-anchor="end">IO33</text>
+      <g class="trait"><path d="M700 310 H780"/><path d="M700 340 H780"/><path d="M700 370 H780"/><path d="M700 400 H780"/></g>
+      <rect class="ic" x="780" y="295" width="70" height="120"/>
+      
+      <text x="815" y="432" text-anchor="middle" font-weight="600">SW2 DIP M/E</text>
+      <g class="trait"><path d="M790 310 H800 L818 302 M820 310 H840"/><path d="M790 340 H800 L818 332 M820 340 H840"/><path d="M790 370 H800 L818 362 M820 370 H840"/><path d="M790 400 H800 L818 392 M820 400 H840"/>
+      <path d="M840 310 V400 M850 355 H870 V440 M860 440 H880 M864 445 H876 M868 450 H872"/><path d="M840 355 H850"/></g>
+      <text x="876" y="432" class="net" text-anchor="end"></text>
+</svg>
+  </div>
+  <p>Tally sur piles. L'entrée EN du TPS63020 est reliée à VIN (toujours en marche) : c'est SW1 qui coupe les piles. L'afficheur U3 est alimenté en 3,3 V par l'ESP32-C3. Les boutons SW2 et SW3 relient GPIO7 et GPIO10 à GND (résistances de tirage internes).</p>
+  <div class="fig">
+    <svg viewBox="0 0 900 420" role="img" aria-label="Schéma électrique du tally sur piles">
+      <rect class="ic" x="20" y="90" width="70" height="110"/>
+      <text x="55" y="82" text-anchor="middle" font-weight="600">BT1</text>
+      <text x="55" y="218" text-anchor="middle" class="net">3 × AA</text>
+      <path d="M40 120 H70 M46 128 H64 M40 140 H70 M46 148 H64 M40 160 H70 M46 168 H64" class="trait"/>
+      <text x="80" y="114" text-anchor="end">+</text><text x="80" y="190" text-anchor="end">−</text>
+      <path d="M90 110 H120" class="trait"/>
+      <circle cx="122" cy="110" r="2.5" class="dot"/><path d="M124 110 L144 100" class="trait"/><circle cx="148" cy="110" r="2.5" class="dot"/>
+      <text x="135" y="92" text-anchor="middle">SW1</text>
+      <path d="M150 110 H200" class="trait"/><text x="175" y="102" class="net" text-anchor="middle">VBAT</text>
+      <path d="M90 185 H200" class="trait"/><text x="150" y="177" class="net" text-anchor="middle">GND</text>
+      <rect class="ic" x="200" y="70" width="140" height="150"/>
+      <text x="270" y="62" text-anchor="middle" font-weight="600">U2 TPS63020</text>
+      <text x="210" y="114">VIN</text><text x="210" y="144">EN</text><text x="210" y="189">GND</text>
+      <text x="330" y="114" text-anchor="end">VOUT</text><text x="330" y="189" text-anchor="end">GND</text>
+      <text x="270" y="210" text-anchor="middle" class="net">module 5 V</text>
+      <path d="M200 110 H186 V140 H200" class="trait"/><circle cx="186" cy="110" r="2.5" class="dot"/>
+      <path d="M340 110 H380" class="trait"/>
+      <path d="M380 102 L396 110 L380 118 Z" style="fill:var(--fg)"/><path d="M396 101 V119" class="trait"/>
+      <text x="388" y="94" text-anchor="middle">D2 1N5817</text>
+      <path d="M396 110 H420 V140 H460" class="trait"/>
+      <path d="M340 185 H420 V180 H460" class="trait"/>
+      <rect class="ic" x="460" y="60" width="150" height="330"/>
+      <text x="535" y="52" text-anchor="middle" font-weight="600">U1 ESP32-C3 Super Mini</text>
+      <text x="470" y="144">5V</text><text x="470" y="184">GND</text>
+      <text x="600" y="104" text-anchor="end">GPIO4</text><text x="600" y="144" text-anchor="end">5V</text><text x="600" y="184" text-anchor="end">GND</text>
+      <text x="535" y="380" text-anchor="middle" class="net">USB-C : téléversement</text>
+      <path d="M610 100 H660" class="trait"/>
+      <rect x="660" y="94" width="40" height="12" class="trait" style="fill:var(--surface)"/><text x="680" y="88" text-anchor="middle">R1 330 Ω</text>
+      <path d="M700 100 H770" class="trait"/>
+      <path d="M610 140 H770" class="trait"/><text x="640" y="132" class="net">+5V</text>
+      <path d="M610 180 H770" class="trait"/><text x="640" y="172" class="net">GND</text>
+      <circle cx="720" cy="140" r="3" class="dot"/><circle cx="720" cy="180" r="3" class="dot"/>
+      <path d="M720 140 V156 M708 156 H732 M708 164 H732 M720 164 V180" class="trait"/>
+      <text x="736" y="165">C1</text>
+      <rect class="ic" x="770" y="80" width="110" height="120"/>
+      <text x="825" y="72" text-anchor="middle" font-weight="600">LED1 WS2812B</text>
+      <text x="780" y="104">DIN</text><text x="780" y="144">VDD</text><text x="780" y="184">GND</text>
+      <text x="825" y="194" text-anchor="middle" class="net">DOUT non relié</text>
+      
+          <text x="600" y="244" text-anchor="end">GPIO5</text><text x="600" y="269" text-anchor="end">GPIO6</text><text x="600" y="294" text-anchor="end">3V3</text>
+      <text x="600" y="334" text-anchor="end">GPIO7</text><text x="600" y="364" text-anchor="end">GPIO10</text>
+      <g class="trait"><path d="M610 240 H770"/><path d="M610 265 H770"/><path d="M610 290 H770"/><path d="M720 180 V315 H770"/></g>
+      <circle cx="720" cy="180" r="3" class="dot"/>
+      <rect class="ic" x="770" y="225" width="110" height="105"/>
+      <text x="825" y="217" text-anchor="middle" font-weight="600">U3 TM1637</text>
+      <text x="780" y="244">CLK</text><text x="780" y="269">DIO</text><text x="780" y="294">VCC</text><text x="780" y="319">GND</text>
+      <g class="trait">
+        <path d="M610 330 H650"/><circle cx="652" cy="330" r="2.5" class="dot"/><path d="M654 322 H676 M665 322 V315"/><circle cx="678" cy="330" r="2.5" class="dot"/><path d="M680 330 H700"/>
+        <path d="M610 360 H650"/><circle cx="652" cy="360" r="2.5" class="dot"/><path d="M654 352 H676 M665 352 V345"/><circle cx="678" cy="360" r="2.5" class="dot"/><path d="M680 360 H700"/>
+        <path d="M700 330 V385 M690 385 H710 M694 390 H706 M698 395 H702"/>
+      </g>
+      <text x="665" y="310" text-anchor="middle" font-size="10">SW2 +</text><text x="665" y="378" text-anchor="middle" font-size="10">SW3 −</text>
+</svg>
+  </div>
+  <p class="note">La WS2812B est alimentée en 5 V mais pilotée en 3,3 V. Grâce à la diode D2, le rail 5V est en réalité vers 4,7 V, ce qui aide la LED à bien lire le 3,3 V. Si une LED clignote au hasard ou reste blanche, ajoutez une diode 1N4148 en série sur son <code>VDD</code> (anode côté 5V) : elle passe vers 4 V et lit sans problème le 3,3 V.</p>
+  <div class="tw"><table>
+    <thead><tr><th>Repère</th><th>Composant</th><th>Quantité</th></tr></thead>
+    <tbody>
+      <tr><td>U1 émetteur</td><td>WT32-ETH01</td><td>1</td></tr>
+      <tr><td>J1</td><td>Embase USB-C ou jack 5,5 × 2,1 mm, et chargeur 5 V 1 A</td><td>1</td></tr>
+      <tr><td>F1, C1</td><td>Fusible réarmable 1 A, condensateur 100 µF 10 V</td><td>1 de chaque</td></tr>
+      <tr><td>U2, D2, D3 émetteur</td><td>Module TPS63020 sortie 5 V, 2 diodes Schottky 1N5817</td><td>1 module, 2 diodes</td></tr>
+      <tr><td>SW2 émetteur</td><td>Interrupteur DIP 4 positions (ou 4 interrupteurs à levier)</td><td>1</td></tr>
+      <tr><td>BT1, SW1 émetteur</td><td>Support 2 × 18650 en parallèle, 2 accus 18650 protégés, interrupteur à levier</td><td>1</td></tr>
+      <tr><td>J2</td><td>Barrette 4 broches mâle (programmation) et un cavalier</td><td>1</td></tr>
+      <tr><td>R1, D1</td><td>330 Ω et LED 3 mm (facultatives)</td><td>1 de chaque</td></tr>
+      <tr><td>—</td><td>Adaptateur USB-série 3,3 V (CP2102 ou CH340), pour l'atelier</td><td>1</td></tr>
+      <tr><td>U1 tally</td><td>ESP32-C3 Super Mini</td><td>8</td></tr>
+      <tr><td>LED1</td><td>WS2812B (LED seule sur petit circuit, ou anneau)</td><td>8</td></tr>
+      <tr><td>R1, C1 tally</td><td>330 Ω, condensateur 100 µF 10 V</td><td>8 de chaque</td></tr>
+      <tr><td>U3 tally</td><td>Module afficheur TM1637 4 chiffres 0,36 pouce</td><td>8</td></tr>
+      <tr><td>SW2, SW3 tally</td><td>Boutons poussoirs 6 × 6 mm ou à visser en façade</td><td>16</td></tr>
+      <tr><td>U2 tally</td><td>Module TPS63020 abaisseur-élévateur, sortie 5 V (ou réglable, mis sur 5 V)</td><td>8</td></tr>
+      <tr><td>D2 tally</td><td>Diode Schottky 1N5817</td><td>8</td></tr>
+      <tr><td>BT1, SW1 tally</td><td>Support 3 × AA avec interrupteur (ou support 18650 + interrupteur), 3 piles AA NiMH</td><td>8</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <h2>Quel code sur quelle carte</h2>
+  <div class="tw"><table>
+    <thead><tr><th>Carte</th><th>Fichier</th><th>Réglages dans l'IDE</th></tr></thead>
+    <tbody>
+      <tr><td>WT32-ETH01 émetteur</td><td><code>emetteur_v2.ino</code></td><td>ESP32 Dev Module. Aucune bibliothèque.</td></tr>
+      <tr><td>Tous les tallys</td><td><code>tally_v2.ino</code></td><td>ESP32C3 Dev Module, « USB CDC On Boot : Enabled ». Bibliothèque « Adafruit NeoPixel ».</td></tr>
+    </tbody>
+  </table></div>
+  <p>Le même <code>tally_v2.ino</code> va dans tous les boîtiers : chaque tally démarre sur l'entrée 1 la première fois, puis on règle son entrée avec les boutons. Réglages en dur dans <code>emetteur_v2.ino</code> : <code>IP_ATEM</code> (192.168.2.20) et <code>IP_EMETTEUR</code> (192.168.2.52). Les M/E se choisissent avec les interrupteurs.</p>
+</section>
+
+<section>
+  <h2>Vérifier dans l'ordre</h2>
+  <ol>
+    <li>Émetteur, Moniteur série à 115200 par l'adaptateur : « Ethernet prêt », « Câble réseau branché », « Connecté à l'ATEM », puis une ligne par M/E à chaque changement.</li>
+    <li>Basculez un interrupteur de M/E : le Moniteur série de l'émetteur affiche « M/E suivies : … » et le tally change aussitôt.</li>
+    <li>Tally : au démarrage, l'afficheur montre son entrée et la LED passe rouge, vert, bleu. Puis bleu fixe tant qu'aucune trame n'arrive, et ensuite elle suit l'ATEM.</li>
+    <li>Bleu clignotant sur un tally : il entend l'émetteur, mais l'émetteur n'a plus l'ATEM. Vérifier le câble RJ45 et les adresses IP.</li>
+  </ol>
+  <div class="tw"><table>
+    <thead><tr><th>Couleur du tally</th><th>Signification</th></tr></thead>
+    <tbody>
+      <tr><td>Rouge</td><td>Son entrée SDI est au programme</td></tr>
+      <tr><td>Vert</td><td>Son entrée SDI est en preview</td></tr>
+      <tr><td>Éteint</td><td>Hors antenne</td></tr>
+      <tr><td>Bleu fixe</td><td>Plus aucune trame reçue depuis 2 s</td></tr>
+      <tr><td>Bleu clignotant</td><td>L'émetteur répond mais n'a plus l'ATEM</td></tr>
+    </tbody>
+  </table></div>
+</section>
+</main>
