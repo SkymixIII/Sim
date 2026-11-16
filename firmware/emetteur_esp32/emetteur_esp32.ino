@@ -17,7 +17,7 @@
 //  Trame USB (dans les deux sens) :
 //    0xA5 0x5A | IP (4) | port (2) | longueur (2) | paquet UDP | XOR des octets 2 à la fin
 //  ESP32 -> PC : paquet à envoyer à IP:port.  PC -> ESP32 : paquet reçu de IP:port.
-//  Le Moniteur série doit être fermé quand le script tourne (vitesse 921600 bauds).
+//  Le Moniteur série doit être fermé quand le script tourne (vitesse 460800 bauds).
 // ============================================================================
 #define UTILISER_W5500 1        // 0 si vous n'avez pas de module W5500
 
@@ -37,7 +37,7 @@ static const uint16_t PORT_ATEM = 9910;
 static const uint16_t PORT_LOCAL = 50910;
 static const uint8_t  SUIVRE_ME = 0;        // 0 : tally général de l'ATEM ; 1 ou 2 : suit cette M/E
 static const uint8_t  CANAL_ESPNOW = 1;
-static const uint32_t VITESSE_USB = 921600;
+static const uint32_t VITESSE_USB = 460800;    // identique dans pont_usb_atem.py
 static const uint32_t PERIODE_RADIO_MS = 100;
 static const uint32_t TIMEOUT_ATEM_MS = 2500;
 static const uint32_t RELANCE_HELLO_MS = 1000;
@@ -73,10 +73,12 @@ bool w5500Present = false;
 #endif
 
 // Réception USB : automate de lecture des trames A5 5A ...
-uint8_t usbBuf[1600];
+uint8_t usbBuf[1700];
 int usbPos = 0;
 uint16_t usbLen = 0;
 uint32_t dernierUsb = 0;
+volatile uint32_t usbTramesOk = 0, usbTramesAbimees = 0, usbDebordements = 0, usbErreursLigne = 0;
+uint32_t dernierBilanUsb = 0;
 
 void traiterPaquet(int n);
 void diffuser();
@@ -120,7 +122,8 @@ void lireUsb() {
       for (int i = 2; i < usbPos - 1; i++) x ^= usbBuf[i];
       bool okIp = memcmp(&usbBuf[2], IP_ATEM, 4) == 0;
       usbPos = 0;
-      if (x != usbBuf[10 + usbLen]) continue;                // trame abîmée
+      if (x != usbBuf[10 + usbLen]) { usbTramesAbimees++; continue; }   // trame abîmée
+      usbTramesOk++;
       dernierUsb = millis();
       if (chemin == USB && okIp) {
         memcpy(rx, &usbBuf[10], usbLen);
@@ -128,6 +131,26 @@ void lireUsb() {
       }
     }
   }
+}
+
+#if defined(ESP_ARDUINO_VERSION_VAL)
+#if ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(2, 0, 6)
+void surErreurUsb(hardwareSerial_error_t e) {
+  if (e == UART_BUFFER_FULL_ERROR || e == UART_FIFO_OVF_ERROR) usbDebordements++;
+  else usbErreursLigne++;
+}
+#define AVEC_ERREURS_USB 1
+#endif
+#endif
+
+void bilanUsb() {
+  if (millis() - dernierBilanUsb < 5000) return;
+  dernierBilanUsb = millis();
+  if (chemin != USB || (usbTramesOk == 0 && usbTramesAbimees == 0)) return;
+  Serial.printf("USB : %lu trames OK, %lu abîmées, %lu débordements, %lu erreurs de ligne (5 s)\n",
+                (unsigned long)usbTramesOk, (unsigned long)usbTramesAbimees,
+                (unsigned long)usbDebordements, (unsigned long)usbErreursLigne);
+  usbTramesOk = usbTramesAbimees = usbDebordements = usbErreursLigne = 0;
 }
 
 // ---------------------------------------------------------------------------
@@ -274,6 +297,9 @@ void demarrerEspNow() {
 void setup() {
   Serial.setRxBufferSize(8192);                // les paquets ATEM arrivent vite par l'USB
   Serial.begin(VITESSE_USB);
+#ifdef AVEC_ERREURS_USB
+  Serial.onReceiveError(surErreurUsb);
+#endif
   pinMode(LED_STATUT, OUTPUT);
   digitalWrite(LED_STATUT, HIGH);
   demarrerEspNow();
@@ -296,6 +322,7 @@ void loop() {
   if (millis() - dernierLien >= 1000) { choisirChemin(); dernierLien = millis(); }
 
   lireUsb();
+  bilanUsb();
 #if UTILISER_W5500
   if (chemin == RJ45) {
     int n = udp.parsePacket();

@@ -14,7 +14,7 @@ Trame USB (dans les deux sens) : 0xA5 0x5A | IP (4) | port (2) | longueur (2) | 
 """
 import fcntl, glob, os, select, socket, struct, sys, termios, time
 
-VITESSE = 921600
+VITESSE = 460800                     # identique à VITESSE_USB dans emetteur_esp32.ino
 
 
 def trouver_port():
