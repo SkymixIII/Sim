@@ -452,15 +452,15 @@ void loop() {
 
 <section>
   <div class="tete"><h2>Tally · <code>tally_v2.ino</code></h2><button type="button" id="copier-rx" data-cible="code-rx">Copier</button></div>
-  <p class="meta">Carte : ESP32C3 Dev Module, « USB CDC On Boot : Enabled ». Bibliothèque « Adafruit NeoPixel ». Rien à modifier : chaque tally démarre sur l'entrée 1, puis on la règle avec les boutons + et −.</p>
+  <p class="meta">Carte : ESP32C3 Dev Module, « USB CDC On Boot : Disabled » (mettre Enabled seulement si la carte n'a pas de puce USB-série). Bibliothèque « Adafruit NeoPixel ». Rien à modifier : chaque tally démarre sur l'entrée 1, puis on la règle avec les boutons + et −.</p>
   <pre id="code-rx">// ============================================================================
-//  VERSION 2 · Tally  ·  ESP32-C3 Super Mini + LED WS2812B + afficheur TM1637
+//  VERSION 2 · Tally  ·  ESP32-C3-DevKitM-1 + LED WS2812B + afficheur TM1637
 // ----------------------------------------------------------------------------
 //  Le même code sur tous les tallys : l&#x27;entrée SDI lue se règle avec les
 //  boutons + et −, et s&#x27;affiche sur l&#x27;afficheur 7 segments (« 7 », « 12 »),
 //  sur les deux chiffres de droite du module 4 chiffres.
 //
-//  Câblage (ESP32-C3 Super Mini) :
+//  Câblage (ESP32-C3-DevKitM-1) :
 //    GPIO4  -&gt; 330 Ω -&gt; DIN de la WS2812B      5V  -&gt; VDD,  GND -&gt; GND
 //    GPIO5  -&gt; CLK du TM1637                   GPIO6 -&gt; DIO du TM1637
 //    3V3    -&gt; VCC du TM1637                   GND -&gt; GND du TM1637
@@ -481,7 +481,7 @@ void loop() {
 //
 //  Maillage : chaque trame nouvelle est rediffusée une fois (TTL - 1).
 //  Bibliothèque : « Adafruit NeoPixel ».
-//  Carte : « ESP32C3 Dev Module », USB CDC On Boot : Enabled.
+//  Carte : « ESP32C3 Dev Module », USB CDC On Boot : Disabled (puce USB-série de la carte).
 // ============================================================================
 #include &lt;WiFi.h&gt;
 #include &lt;esp_now.h&gt;

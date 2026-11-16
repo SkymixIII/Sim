@@ -227,8 +227,8 @@ svg .dot { fill: var(--fg); }
       <path d="M360 200 H440 V205 H470" stroke="var(--wire-gnd)" stroke-width="3" fill="none"/>
       <rect class="pcb" x="470" y="60" width="170" height="370" rx="8"/>
       <text x="555" y="88" text-anchor="middle" class="pcb-t">ESP32-C3</text>
-      <text x="555" y="104" text-anchor="middle" class="pcb-t" font-weight="400">Super Mini</text>
-      <rect x="530" y="420" width="50" height="22" rx="4" style="fill:var(--usb)"/><text x="470" y="452" class="muted" font-size="10">USB-C (téléversement)</text>
+      <text x="555" y="104" text-anchor="middle" class="pcb-t" font-weight="400">DevKitM-1</text>
+      <rect x="530" y="420" width="50" height="22" rx="4" style="fill:var(--usb)"/><text x="470" y="452" class="muted" font-size="10">USB (téléversement)</text>
       <circle class="pin" cx="470" cy="165" r="6"/><text x="484" y="169" class="pcb-t">5V</text>
       <circle class="pin" cx="470" cy="205" r="6"/><text x="484" y="209" class="pcb-t">GND</text>
       <circle class="pin" cx="640" cy="125" r="6"/><text x="626" y="129" text-anchor="end" class="pcb-t">GPIO4</text>
@@ -278,7 +278,7 @@ svg .dot { fill: var(--fg); }
     </svg>
   </div>
   <div class="tw"><table>
-    <thead><tr><th>Liaison</th><th>ESP32-C3 Super Mini</th><th>WS2812B</th></tr></thead>
+    <thead><tr><th>Liaison</th><th>ESP32-C3-DevKitM-1</th><th>WS2812B</th></tr></thead>
     <tbody>
       <tr><td><span class="sw" style="background:var(--wire-a)"></span>Données</td><td><code>GPIO4</code>, par une résistance de 330 Ω</td><td><code>DIN</code></td></tr>
       <tr><td><span class="sw" style="background:var(--wire-3v3)"></span>Alimentation</td><td><code>5V</code></td><td><code>VDD</code> (ou <code>5V</code>)</td></tr>
@@ -298,7 +298,7 @@ svg .dot { fill: var(--fg); }
     <li><strong>3 piles AA</strong> : rechargeables NiMH (3,6 V) ou alcalines (4,5 V). Jamais 4 alcalines : 6 V dépasse les 5,5 V du TPS63020.</li>
     <li><strong>ou 1 accu Li-ion 18650</strong> protégé (3 à 4,2 V), dans un support avec interrupteur.</li>
   </ul>
-  <p>Autonomie, à environ 0,7 W par tally (ESP32-C3 qui écoute la radio en continu, LED allumée à 160 sur 255) : à peu près 10 h avec 3 AA NiMH de 2 000 mAh, 15 h avec un 18650 de 3 000 mAh. La diode D2 empêche l'USB-C de renvoyer du courant dans le TPS63020 : on peut brancher l'USB pour téléverser sans retirer les piles, mais mettez l'interrupteur sur OFF par sécurité.</p>
+  <p>Autonomie, à environ 0,7 W par tally (ESP32-C3 qui écoute la radio en continu, LED allumée à 160 sur 255) : à peu près 10 h avec 3 AA NiMH de 2 000 mAh, 15 h avec un 18650 de 3 000 mAh. La diode D2 empêche l'USB de renvoyer du courant dans le TPS63020 : on peut brancher l'USB pour téléverser sans retirer les piles, mais mettez l'interrupteur sur OFF par sécurité.</p>
   <div class="tw"><table>
     <thead><tr><th>Bouton</th><th>Effet</th></tr></thead>
     <tbody>
@@ -308,7 +308,7 @@ svg .dot { fill: var(--fg); }
       <tr><td>Relâché depuis 3 s</td><td>L'afficheur arrête de clignoter : l'entrée est enregistrée, même après une coupure</td></tr>
     </tbody>
   </table></div>
-  <p>Broches choisies pour l'ESP32-C3 Super Mini : GPIO2, GPIO8 et GPIO9 sont évitées car elles décident du mode de démarrage (GPIO9 est aussi le bouton BOOT), et GPIO20 et GPIO21 servent au port série. L'afficheur et les boutons ajoutent environ 10 à 20 mA : l'autonomie reste autour de 9 h avec 3 AA NiMH.</p>
+  <p>Broches choisies pour l'ESP32-C3-DevKitM-1 : GPIO2, GPIO8 et GPIO9 sont évitées car elles décident du mode de démarrage (GPIO9 est aussi le bouton BOOT, GPIO8 porte la LED RGB de la carte, qui reste éteinte), et GPIO20 et GPIO21 servent au port série. L'afficheur et les boutons ajoutent environ 10 à 20 mA : l'autonomie reste autour de 9 h avec 3 AA NiMH.</p>
 </section>
 
 <section class="sch">
@@ -409,10 +409,10 @@ svg .dot { fill: var(--fg); }
       <path d="M396 110 H420 V140 H460" class="trait"/>
       <path d="M340 185 H420 V180 H460" class="trait"/>
       <rect class="ic" x="460" y="60" width="150" height="330"/>
-      <text x="535" y="52" text-anchor="middle" font-weight="600">U1 ESP32-C3 Super Mini</text>
+      <text x="535" y="52" text-anchor="middle" font-weight="600">U1 ESP32-C3-DevKitM-1</text>
       <text x="470" y="144">5V</text><text x="470" y="184">GND</text>
       <text x="600" y="104" text-anchor="end">GPIO4</text><text x="600" y="144" text-anchor="end">5V</text><text x="600" y="184" text-anchor="end">GND</text>
-      <text x="535" y="380" text-anchor="middle" class="net">USB-C : téléversement</text>
+      <text x="535" y="380" text-anchor="middle" class="net">USB : téléversement</text>
       <path d="M610 100 H660" class="trait"/>
       <rect x="660" y="94" width="40" height="12" class="trait" style="fill:var(--surface)"/><text x="680" y="88" text-anchor="middle">R1 330 Ω</text>
       <path d="M700 100 H770" class="trait"/>
@@ -454,7 +454,7 @@ svg .dot { fill: var(--fg); }
       <tr><td>J2</td><td>Barrette 4 broches mâle (programmation) et un cavalier</td><td>1</td></tr>
       <tr><td>R1, D1</td><td>330 Ω et LED 3 mm (facultatives)</td><td>1 de chaque</td></tr>
       <tr><td>—</td><td>Adaptateur USB-série 3,3 V (CP2102 ou CH340), pour l'atelier</td><td>1</td></tr>
-      <tr><td>U1 tally</td><td>ESP32-C3 Super Mini</td><td>8</td></tr>
+      <tr><td>U1 tally</td><td>ESP32-C3-DevKitM-1</td><td>8</td></tr>
       <tr><td>LED1</td><td>WS2812B (LED seule sur petit circuit, ou anneau)</td><td>8</td></tr>
       <tr><td>R1, C1 tally</td><td>330 Ω, condensateur 100 µF 10 V</td><td>8 de chaque</td></tr>
       <tr><td>U3 tally</td><td>Module afficheur TM1637 4 chiffres 0,36 pouce (seuls les 2 de droite servent)</td><td>8</td></tr>
@@ -472,7 +472,7 @@ svg .dot { fill: var(--fg); }
     <thead><tr><th>Carte</th><th>Fichier</th><th>Réglages dans l'IDE</th></tr></thead>
     <tbody>
       <tr><td>WT32-ETH01 émetteur</td><td><code>emetteur_v2.ino</code></td><td>ESP32 Dev Module. Aucune bibliothèque.</td></tr>
-      <tr><td>Tous les tallys</td><td><code>tally_v2.ino</code></td><td>ESP32C3 Dev Module, « USB CDC On Boot : Enabled ». Bibliothèque « Adafruit NeoPixel ».</td></tr>
+      <tr><td>Tous les tallys</td><td><code>tally_v2.ino</code></td><td>ESP32C3 Dev Module, « USB CDC On Boot : Disabled » (la puce USB-série de la carte gère le moniteur série ; mettre Enabled seulement si la carte n'en a pas). Bibliothèque « Adafruit NeoPixel ».</td></tr>
     </tbody>
   </table></div>
   <p>Le même <code>tally_v2.ino</code> va dans tous les boîtiers : chaque tally démarre sur l'entrée 1 la première fois, puis on règle son entrée avec les boutons. Réglages en dur dans <code>emetteur_v2.ino</code> : <code>IP_ATEM</code> (192.168.2.20) et <code>IP_EMETTEUR</code> (192.168.2.52). Les M/E se choisissent avec les interrupteurs.</p>

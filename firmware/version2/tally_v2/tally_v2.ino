@@ -1,11 +1,11 @@
 // ============================================================================
-//  VERSION 2 · Tally  ·  ESP32-C3 Super Mini + LED WS2812B + afficheur TM1637
+//  VERSION 2 · Tally  ·  ESP32-C3-DevKitM-1 + LED WS2812B + afficheur TM1637
 // ----------------------------------------------------------------------------
 //  Le même code sur tous les tallys : l'entrée SDI lue se règle avec les
 //  boutons + et −, et s'affiche sur l'afficheur 7 segments (« 7 », « 12 »),
 //  sur les deux chiffres de droite du module 4 chiffres.
 //
-//  Câblage (ESP32-C3 Super Mini) :
+//  Câblage (ESP32-C3-DevKitM-1) :
 //    GPIO4  -> 330 Ω -> DIN de la WS2812B      5V  -> VDD,  GND -> GND
 //    GPIO5  -> CLK du TM1637                   GPIO6 -> DIO du TM1637
 //    3V3    -> VCC du TM1637                   GND -> GND du TM1637
@@ -26,7 +26,7 @@
 //
 //  Maillage : chaque trame nouvelle est rediffusée une fois (TTL - 1).
 //  Bibliothèque : « Adafruit NeoPixel ».
-//  Carte : « ESP32C3 Dev Module », USB CDC On Boot : Enabled.
+//  Carte : « ESP32C3 Dev Module », USB CDC On Boot : Disabled (puce USB-série de la carte).
 // ============================================================================
 #include <WiFi.h>
 #include <esp_now.h>

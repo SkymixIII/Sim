@@ -1,5 +1,5 @@
 // ============================================================================
-//  VERSION 1 · Tally 1 = SDI in 1  ·  ESP32-C3 Super Mini + LED WS2812B
+//  VERSION 1 · Tally 1 = SDI in 1  ·  ESP32-C3-DevKitM-1 + LED WS2812B
 // ----------------------------------------------------------------------------
 //  - Écoute les trames tally diffusées par l'émetteur (ESP-NOW, canal 1)
 //    ou relayées par les autres lampes.
@@ -20,7 +20,7 @@
 //
 //  Câblage réel : WS2812B DIN <- 330 Ω <- GPIO4, 5 V et GND de la carte.
 //  Bibliothèque : « Adafruit NeoPixel » (gestionnaire de bibliothèques de l'IDE).
-//  Carte dans l'IDE : « ESP32C3 Dev Module », USB CDC On Boot : Enabled (pour le moniteur série).
+//  Carte dans l'IDE : « ESP32C3 Dev Module », USB CDC On Boot : Disabled (le moniteur série passe par la puce USB-série de la carte).
 //  Simulation : même logique que les sketches « Lampe » du montage Tally de l'Établi
 //  (où la WS2812B est remplacée par 3 LED : rouge GPIO18, verte GPIO19, bleue GPIO21).
 // ============================================================================

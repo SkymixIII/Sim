@@ -437,9 +437,9 @@ void loop() {
 
 <section>
   <div class="tete"><h2>Tally N · <code>tally_sdiN.ino</code></h2><button type="button" id="copier-rx" data-cible="code-rx">Copier</button></div>
-  <p class="meta">Carte : ESP32C3 Dev Module, « USB CDC On Boot : Enabled ». Bibliothèque « Adafruit NeoPixel ». Avant de téléverser, remplacez <code>SDI_IN = 1</code> par le numéro de l'entrée (1 à 20), puis collez le sticker correspondant sur le boîtier.</p>
+  <p class="meta">Carte : ESP32C3 Dev Module, « USB CDC On Boot : Disabled » (mettre Enabled seulement si la carte n'a pas de puce USB-série). Bibliothèque « Adafruit NeoPixel ». Avant de téléverser, remplacez <code>SDI_IN = 1</code> par le numéro de l'entrée (1 à 20), puis collez le sticker correspondant sur le boîtier.</p>
   <pre id="code-rx">// ============================================================================
-//  VERSION 1 · Tally N = SDI in N (régler SDI_IN plus bas)  ·  ESP32-C3 Super Mini + LED WS2812B
+//  VERSION 1 · Tally N = SDI in N (régler SDI_IN plus bas)  ·  ESP32-C3-DevKitM-1 + LED WS2812B
 // ----------------------------------------------------------------------------
 //  - Écoute les trames tally diffusées par l&#x27;émetteur (ESP-NOW, canal 1)
 //    ou relayées par les autres lampes.
@@ -460,7 +460,7 @@ void loop() {
 //
 //  Câblage réel : WS2812B DIN &lt;- 330 Ω &lt;- GPIO4, 5 V et GND de la carte.
 //  Bibliothèque : « Adafruit NeoPixel » (gestionnaire de bibliothèques de l&#x27;IDE).
-//  Carte dans l&#x27;IDE : « ESP32C3 Dev Module », USB CDC On Boot : Enabled (pour le moniteur série).
+//  Carte dans l&#x27;IDE : « ESP32C3 Dev Module », USB CDC On Boot : Disabled (le moniteur série passe par la puce USB-série de la carte).
 //  Simulation : même logique que les sketches « Lampe » du montage Tally de l&#x27;Établi
 //  (où la WS2812B est remplacée par 3 LED : rouge GPIO18, verte GPIO19, bleue GPIO21).
 // ============================================================================
