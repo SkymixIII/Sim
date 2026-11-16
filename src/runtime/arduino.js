@@ -9,11 +9,13 @@ export function transpile(src) {
   const fnNames = [];
   s = s.replace(new RegExp(`\\b(?:static\\s+)?(?:void|${TYPES})\\s+(\\w+)\\s*\\(([^)]*)\\)\\s*\\{`, "g"), (m, name, args) => {
     fnNames.push(name);
-    const params = args.split(",").map((a) => a.trim().split(/\s+/).pop()).filter((a) => a && a !== "void");
+    const params = args.split(",").map((a) => a.trim().split(/[\s*&]+/).pop().replace(/\[\s*\w*\s*\]/g, "")).filter((a) => a && a !== "void");
     return `async function ${name}(${params.join(", ")}) {`;
   });
   s = s.replace(new RegExp(`\\b(const\\s+)?(?:static\\s+)?(?:volatile\\s+)?${TYPES}\\s+(?=[A-Za-z_])`, "g"), (m, c) => (c ? "const " : "let "));
-  s = s.replace(/\b(let|const)\s+(\w+)\s*\[\s*\d*\s*\]\s*=\s*\{([^}]*)\}/g, "$1 $2 = [$3]");
+  s = s.replace(/\b(let|const)\s+(\w+)\s*\[\s*\w*\s*\]\s*=\s*\{([^}]*)\}/g, "$1 $2 = [$3]");
+  // Tableau sans initialiseur (uint8_t buf[64];) : rempli de zéros, comme une variable globale C.
+  s = s.replace(/\b(let|const)\s+(\w+)\s*\[\s*(\w+)\s*\]\s*;/g, "$1 $2 = new Array($3).fill(0);");
   s = s.replace(new RegExp(`\\(\\s*${TYPES}\\s*\\)`, "g"), "");
   s = s.replace(/\bdelay\s*\(/g, "await delay(").replace(/\bdelayMicroseconds\s*\(/g, "await delayMicroseconds(");
   for (const f of fnNames) {
@@ -25,7 +27,8 @@ export function transpile(src) {
 
 /**
  * board : { pins: liste des GPIO disponibles, inputOnly: Set, adc: Set,
- *           setPin(gpio, state), read(gpio) -> 0|1, analog(gpio) -> 0..4095 }
+ *           setPin(gpio, state), read(gpio) -> 0|1, analog(gpio) -> 0..4095,
+ *           net?: port du réseau virtuel (voir engine/network.js) }
  */
 export class SketchRunner {
   constructor(board, { log, onState }) {
@@ -56,9 +59,17 @@ export class SketchRunner {
       if (!b.pins.includes(pin)) throw new Error(`GPIO${pin} n'est pas disponible sur cette carte (broches : ${b.pins.join(", ")}).`);
     };
     const modes = {};
+    const bytesOf = (buf, len) => Array.from(buf.slice(0, len ?? buf.length), (x) => Number(x) & 0xff);
+    const copyInto = (buf, msg) => {
+      if (!msg) return 0;
+      const n = Math.min(msg.length, buf.length);
+      for (let i = 0; i < n; i++) buf[i] = msg[i];
+      return n;
+    };
     const api = {
       HIGH: 1, LOW: 0, OUTPUT: "OUTPUT", INPUT: "INPUT", INPUT_PULLUP: "INPUT_PULLUP", INPUT_PULLDOWN: "INPUT_PULLDOWN",
-      true: true, false: false, PI: Math.PI,
+      true: true, false: false, PI: Math.PI, HEX: 16, DEC: 10, BIN: 2,
+      String: (v = "", base) => (base && typeof v === "number" ? Math.trunc(v).toString(base).toUpperCase() : String(v)),
       pinMode(pin, mode) {
         checkPin(pin);
         if (mode === "OUTPUT" && b.inputOnly.has(pin)) { api.Serial.println(`E (gpio) : GPIO${pin} ne peut être utilisée qu'en entrée`); return; }
@@ -92,6 +103,18 @@ export class SketchRunner {
       map: (x, inMin, inMax, outMin, outMax) => Math.trunc(((x - inMin) * (outMax - outMin)) / (inMax - inMin) + outMin),
       constrain: (x, lo, hi) => Math.min(hi, Math.max(lo, x)),
       abs: Math.abs, min: Math.min, max: Math.max, sqrt: Math.sqrt, pow: Math.pow, sin: Math.sin, cos: Math.cos,
+      // Liens virtuels (non électriques). Les tableaux sont passés par référence, comme un uint8_t* en C.
+      Rj45: {
+        begin() { return true; },
+        linkUp() { return !!b.net?.rj45Linked(); },
+        send(buf, len) { return !!b.net?.rj45Send(bytesOf(buf, len)); },
+        receive(buf) { return copyInto(buf, b.net?.rj45Receive()); },
+      },
+      EspNow: {
+        begin(canal = 1) { return !!b.net?.espnowBegin(canal); },
+        broadcast(buf, len) { return !!b.net?.espnowSend(bytesOf(buf, len)); },
+        receive(buf) { return copyInto(buf, b.net?.espnowReceive()); },
+      },
       Serial: {
         line: "",
         begin() {},
@@ -115,7 +138,7 @@ export class SketchRunner {
       if (prog.setup) await prog.setup();
       while (alive()) {
         await prog.loop();
-        await wait(0);
+        await wait(this.loopPause ?? 0);
       }
     } catch (e) {
       if (e === STOP) return;

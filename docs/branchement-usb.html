@@ -1,0 +1,227 @@
+<title>Câblage tally USB</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+/* Layout : une colonne de lecture, chaque schéma dans sa propre zone défilable, fiches broche à broche en tableaux. */
+:root {
+  --bg: #f5f7f6; --surface: #ffffff; --fg: #17201d; --muted: #5b6763; --line: #c9d2ce;
+  --pcb: #1f5a45; --pcb-ink: #e9f3ee; --wire-a: #d9480f; --wire-b: #1c7ed6; --wire-gnd: #343a40; --wire-3v3: #c2255c;
+  --usb: #6741d9; --radio: #0c8599; --seg: #e03131; --dip: #1971c2;
+  --sans: "IBM Plex Sans", system-ui, sans-serif; --mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #111614; --surface: #1a211e; --fg: #e3ebe7; --muted: #9aa8a2; --line: #34403b;
+  --pcb: #2a7a5e; --pcb-ink: #f0f8f4; --wire-a: #ff7a3d; --wire-b: #4dabf7; --wire-gnd: #adb5bd; --wire-3v3: #f06595;
+  --usb: #9775fa; --radio: #3bc9db; --seg: #ff6b6b; --dip: #4dabf7; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #111614; --surface: #1a211e; --fg: #e3ebe7; --muted: #9aa8a2; --line: #34403b;
+  --pcb: #2a7a5e; --pcb-ink: #f0f8f4; --wire-a: #ff7a3d; --wire-b: #4dabf7; --wire-gnd: #adb5bd; --wire-3v3: #f06595;
+  --usb: #9775fa; --radio: #3bc9db; --seg: #ff6b6b; --dip: #4dabf7; color-scheme: dark }
+body { background: var(--bg); color: var(--fg); font: 16px/1.55 var(--sans); }
+main { max-width: 900px; margin: 0 auto; padding-block: 32px 64px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 40px; }
+h1 { font-size: 1.9rem; line-height: 1.2; margin: 0 0 8px; text-wrap: balance; }
+h2 { font-size: 1.3rem; margin: 0 0 12px; text-wrap: balance; }
+p { margin: 0 0 12px; max-width: 65ch; }
+.lead { color: var(--muted); }
+section { min-width: 0; display: grid; gap: 12px; }
+section > * { margin-bottom: 0; }
+.fig { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 12px; }
+.fig svg { display: block; min-width: 640px; width: 100%; height: auto; }
+svg text { font-family: var(--mono); fill: var(--fg); font-size: 12px; }
+svg .pcb { fill: var(--pcb); }
+svg .pcb-t { fill: var(--pcb-ink); font-weight: 600; }
+svg .pin { fill: var(--surface); stroke: var(--pcb-ink); stroke-width: 1.2; }
+svg .muted { fill: var(--muted); }
+svg .box { fill: var(--surface); stroke: var(--fg); stroke-width: 1.5; }
+.tw { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 0.95rem; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; }
+td code, p code, li code { font-family: var(--mono); font-size: 0.9em; }
+.sw { display: inline-block; width: 22px; height: 4px; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
+ol, ul { margin: 0; padding-left: 1.3em; display: grid; gap: 6px; max-width: 70ch; }
+.note { border-left: 3px solid var(--wire-a); padding: 8px 12px; background: var(--surface); }
+</style>
+
+<main>
+<header>
+  <h1>Câblage du tally ATEM par le Mac</h1>
+  <p class="lead">Le Mac est relié à l'ATEM en RJ45 et calcule le tally de chaque M/E. Il l'envoie par USB à l'ESP32 émetteur, qui garde les M/E choisies avec ses interrupteurs et diffuse le résultat en ESP-NOW. Chaque tally affiche l'entrée SDI qu'il suit.</p>
+</header>
+
+<section>
+  <h2>Vue d'ensemble</h2>
+  <div class="fig">
+    <svg viewBox="0 0 860 170" role="img" aria-label="ATEM en RJ45 vers le Mac, Mac en USB vers l'ESP32 émetteur, radio vers les tallys">
+      <rect class="box" x="10" y="55" width="140" height="60" rx="6"/>
+      <text x="80" y="80" text-anchor="middle" font-weight="600">ATEM 2 M/E</text>
+      <text x="80" y="98" text-anchor="middle" class="muted">192.168.2.20</text>
+      <line x1="150" y1="85" x2="220" y2="85" stroke="var(--usb)" stroke-width="4"/>
+      <text x="185" y="75" text-anchor="middle" style="fill:var(--usb)">RJ45</text>
+      <rect class="box" x="220" y="50" width="150" height="70" rx="6"/>
+      <text x="295" y="78" text-anchor="middle" font-weight="600">Mac</text>
+      <text x="295" y="96" text-anchor="middle" class="muted">atem_vers_esp32.py</text>
+      <line x1="370" y1="85" x2="440" y2="85" stroke="var(--wire-gnd)" stroke-width="4"/>
+      <text x="405" y="75" text-anchor="middle">USB</text>
+      <rect class="pcb" x="440" y="40" width="150" height="90" rx="6"/>
+      <text x="515" y="70" text-anchor="middle" class="pcb-t">ESP32 émetteur</text>
+      <text x="515" y="88" text-anchor="middle" class="pcb-t" font-weight="400">4 interrupteurs</text>
+      <text x="515" y="104" text-anchor="middle" class="pcb-t" font-weight="400">choix des M/E</text>
+      <path d="M605 70 q12 15 0 30 M618 60 q20 25 0 50 M631 50 q28 35 0 70" fill="none" stroke="var(--radio)" stroke-width="2.5"/>
+      <text x="700" y="30" text-anchor="middle" style="fill:var(--radio)">ESP-NOW canal 1</text>
+      <rect class="pcb" x="680" y="48" width="165" height="30" rx="4"/><text x="762" y="68" text-anchor="middle" class="pcb-t">Tally « In 1 »</text>
+      <rect class="pcb" x="680" y="88" width="165" height="30" rx="4"/><text x="762" y="108" text-anchor="middle" class="pcb-t">… « In12 »</text>
+      <text x="762" y="145" text-anchor="middle" class="muted">+ antennes relais</text>
+    </svg>
+  </div>
+</section>
+
+<section>
+  <h2>Émetteur : choisir les M/E</h2>
+  <p>Un interrupteur DIP à 4 positions (ou 4 interrupteurs à levier). Chaque broche a déjà sa résistance de tirage interne dans l'ESP32 : il suffit de relier l'autre côté des interrupteurs à GND.</p>
+  <div class="fig">
+    <svg viewBox="0 0 700 300" role="img" aria-label="ESP32 D32, D33, D25, D26 vers interrupteurs ME1 à ME4, l'autre côté commun à GND">
+      <rect class="pcb" x="20" y="20" width="220" height="260" rx="8"/>
+      <text x="130" y="50" text-anchor="middle" class="pcb-t">ESP32 DevKit V1</text>
+      <text x="130" y="68" text-anchor="middle" class="pcb-t" font-weight="400">émetteur</text>
+      <rect x="20" y="130" width="34" height="40" rx="3" fill="var(--usb)"/><text x="37" y="186" text-anchor="middle" class="pcb-t">USB</text>
+      <circle class="pin" cx="240" cy="95" r="6"/><text x="226" y="99" text-anchor="end" class="pcb-t">D32</text>
+      <circle class="pin" cx="240" cy="135" r="6"/><text x="226" y="139" text-anchor="end" class="pcb-t">D33</text>
+      <circle class="pin" cx="240" cy="175" r="6"/><text x="226" y="179" text-anchor="end" class="pcb-t">D25</text>
+      <circle class="pin" cx="240" cy="215" r="6"/><text x="226" y="219" text-anchor="end" class="pcb-t">D26</text>
+      <circle class="pin" cx="240" cy="255" r="6"/><text x="226" y="259" text-anchor="end" class="pcb-t">GND</text>
+      <g stroke-width="3" fill="none">
+        <path d="M246 95 H380" stroke="var(--wire-a)"/>
+        <path d="M246 135 H380" stroke="var(--wire-b)"/>
+        <path d="M246 175 H380" stroke="var(--wire-a)"/>
+        <path d="M246 215 H380" stroke="var(--wire-b)"/>
+        <path d="M246 255 H520 V95 H500 M520 135 H500 M520 175 H500 M520 215 H500" stroke="var(--wire-gnd)"/>
+      </g>
+      <rect x="380" y="75" width="120" height="160" rx="6" fill="var(--dip)"/>
+      <g fill="var(--surface)">
+        <rect x="420" y="86" width="40" height="18" rx="3"/><rect x="420" y="126" width="40" height="18" rx="3"/>
+        <rect x="420" y="166" width="40" height="18" rx="3"/><rect x="420" y="206" width="40" height="18" rx="3"/>
+      </g>
+      <g fill="var(--fg)">
+        <rect x="442" y="89" width="15" height="12" rx="2"/><rect x="423" y="129" width="15" height="12" rx="2"/>
+        <rect x="423" y="169" width="15" height="12" rx="2"/><rect x="423" y="209" width="15" height="12" rx="2"/>
+      </g>
+      <text x="440" y="66" text-anchor="middle" font-weight="600">DIP 4 positions</text>
+      <text x="400" y="99" text-anchor="middle" class="pcb-t">1</text><text x="400" y="139" text-anchor="middle" class="pcb-t">2</text>
+      <text x="400" y="179" text-anchor="middle" class="pcb-t">3</text><text x="400" y="219" text-anchor="middle" class="pcb-t">4</text>
+      <text x="540" y="99">M/E 1 · ON</text><text x="540" y="139">M/E 2 · OFF</text>
+      <text x="540" y="179">M/E 3 · OFF</text><text x="540" y="219">M/E 4 · OFF</text>
+      <text x="540" y="259" class="muted">commun → GND</text>
+    </svg>
+  </div>
+  <div class="tw"><table>
+    <thead><tr><th>Interrupteur</th><th>ESP32</th><th>Sur ON</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><code>D32</code></td><td>M/E 1 prise en compte</td></tr>
+      <tr><td>2</td><td><code>D33</code></td><td>M/E 2 prise en compte</td></tr>
+      <tr><td>3</td><td><code>D25</code></td><td>M/E 3 prise en compte</td></tr>
+      <tr><td>4</td><td><code>D26</code></td><td>M/E 4 prise en compte</td></tr>
+      <tr><td>Commun</td><td><code>GND</code></td><td>L'autre côté des 4 interrupteurs</td></tr>
+    </tbody>
+  </table></div>
+  <p>Une entrée passe au rouge si elle est au programme de l'une des M/E sur ON, sinon au vert si elle est en preview sur l'une d'elles. Tous sur OFF revient à tout suivre. Le changement est pris en compte tout de suite, sans redémarrer. Sur une 2 M/E, les interrupteurs 3 et 4 n'ont pas d'effet.</p>
+</section>
+
+<section>
+  <h2>Chaque tally : LED, afficheur et bouton</h2>
+  <p>Un seul code pour tous les tallys. L'afficheur TM1637 (module 4 chiffres, 4 fils) montre l'entrée SDI suivie, par exemple « In 7 ». Le bouton change d'entrée. Le bouton BOOT de la carte fait la même chose, le bouton externe sert seulement si la carte est dans un boîtier.</p>
+  <div class="fig">
+    <svg viewBox="0 0 760 400" role="img" aria-label="ESP32 vers 3 LED, afficheur TM1637 sur D22 et D23, bouton sur D4">
+      <rect class="pcb" x="20" y="20" width="220" height="360" rx="8"/>
+      <text x="130" y="50" text-anchor="middle" class="pcb-t">ESP32 DevKit V1</text>
+      <text x="130" y="68" text-anchor="middle" class="pcb-t" font-weight="400">tally_recepteur</text>
+      <circle class="pin" cx="240" cy="95" r="6"/><text x="226" y="99" text-anchor="end" class="pcb-t">D18</text>
+      <circle class="pin" cx="240" cy="135" r="6"/><text x="226" y="139" text-anchor="end" class="pcb-t">D19</text>
+      <circle class="pin" cx="240" cy="175" r="6"/><text x="226" y="179" text-anchor="end" class="pcb-t">D21</text>
+      <circle class="pin" cx="240" cy="225" r="6"/><text x="226" y="229" text-anchor="end" class="pcb-t">D22</text>
+      <circle class="pin" cx="240" cy="255" r="6"/><text x="226" y="259" text-anchor="end" class="pcb-t">D23</text>
+      <circle class="pin" cx="240" cy="285" r="6"/><text x="226" y="289" text-anchor="end" class="pcb-t">3V3</text>
+      <circle class="pin" cx="240" cy="315" r="6"/><text x="226" y="319" text-anchor="end" class="pcb-t">GND</text>
+      <circle class="pin" cx="240" cy="355" r="6"/><text x="226" y="359" text-anchor="end" class="pcb-t">D4</text>
+      <rect x="60" y="330" width="50" height="22" rx="4" fill="var(--pcb-ink)"/><text x="85" y="345" text-anchor="middle" font-size="10" style="fill:var(--pcb)">BOOT</text>
+
+      <g stroke="var(--fg)" stroke-width="2" fill="none">
+        <path d="M246 95 H300"/><path d="M246 135 H300"/><path d="M246 175 H300"/>
+        <rect x="300" y="87" width="56" height="16" fill="var(--surface)"/><rect x="300" y="127" width="56" height="16" fill="var(--surface)"/><rect x="300" y="167" width="56" height="16" fill="var(--surface)"/>
+        <path d="M356 95 H400"/><path d="M356 135 H400"/><path d="M356 175 H400"/>
+        <path d="M424 95 H460 V175 M424 135 H460 M424 175 H460 V195 H690"/>
+      </g>
+      <text x="328" y="80" text-anchor="middle">120 Ω</text><text x="328" y="120" text-anchor="middle">47 Ω</text><text x="328" y="160" text-anchor="middle">33 Ω</text>
+      <path d="M400 85 L424 95 L400 105 Z" fill="#e03131"/><line x1="424" y1="85" x2="424" y2="105" stroke="var(--fg)" stroke-width="2"/>
+      <path d="M400 125 L424 135 L400 145 Z" fill="#2f9e44"/><line x1="424" y1="125" x2="424" y2="145" stroke="var(--fg)" stroke-width="2"/>
+      <path d="M400 165 L424 175 L400 185 Z" fill="#1c7ed6"/><line x1="424" y1="165" x2="424" y2="185" stroke="var(--fg)" stroke-width="2"/>
+      <text x="480" y="99">rouge · PGM</text><text x="480" y="139">verte · PVW</text><text x="480" y="179">bleue · liaison</text>
+
+      <g stroke-width="3" fill="none">
+        <path d="M246 225 H520" stroke="var(--wire-a)"/>
+        <path d="M246 255 H520" stroke="var(--wire-b)"/>
+        <path d="M246 285 H520" stroke="var(--wire-3v3)"/>
+        <path d="M246 315 H520" stroke="var(--wire-gnd)"/>
+        <path d="M690 195 V315" stroke="var(--fg)" stroke-width="2"/>
+        <path d="M690 315 H660" stroke="var(--wire-gnd)"/>
+      </g>
+      <rect x="520" y="212" width="140" height="116" rx="6" fill="var(--pcb)"/>
+      <rect x="532" y="236" width="116" height="40" rx="3" fill="#111"/>
+      <text x="590" y="264" text-anchor="middle" font-size="22" font-weight="600" style="fill:var(--seg)">In 7</text>
+      <text x="590" y="228" text-anchor="middle" class="pcb-t" font-size="11">TM1637</text>
+      <text x="530" y="298" class="pcb-t" font-size="10">CLK DIO VCC GND</text>
+
+      <g stroke-width="3" fill="none">
+        <path d="M246 355 H380" stroke="var(--wire-a)"/>
+        <path d="M440 355 H690 V315" stroke="var(--wire-gnd)"/>
+      </g>
+      <circle cx="380" cy="355" r="4" fill="var(--fg)"/><circle cx="440" cy="355" r="4" fill="var(--fg)"/>
+      <path d="M380 341 L440 341 M410 341 V330 M398 330 H422" stroke="var(--fg)" stroke-width="2.5" fill="none"/>
+      <text x="410" y="378" text-anchor="middle">bouton</text>
+    </svg>
+  </div>
+  <div class="tw"><table>
+    <thead><tr><th>Élément</th><th>ESP32</th><th>Remarque</th></tr></thead>
+    <tbody>
+      <tr><td><span class="sw" style="background:#e03131"></span>LED rouge</td><td><code>D18</code> → 120 Ω → LED → <code>GND</code></td><td>Programme</td></tr>
+      <tr><td><span class="sw" style="background:#2f9e44"></span>LED verte</td><td><code>D19</code> → 47 Ω → LED → <code>GND</code></td><td>Preview</td></tr>
+      <tr><td><span class="sw" style="background:#1c7ed6"></span>LED bleue</td><td><code>D21</code> → 33 Ω → LED → <code>GND</code></td><td>Liaison perdue</td></tr>
+      <tr><td><span class="sw" style="background:var(--wire-a)"></span>Afficheur CLK</td><td><code>D22</code></td><td>Module TM1637 4 chiffres</td></tr>
+      <tr><td><span class="sw" style="background:var(--wire-b)"></span>Afficheur DIO</td><td><code>D23</code></td><td></td></tr>
+      <tr><td><span class="sw" style="background:var(--wire-3v3)"></span>Afficheur VCC</td><td><code>3V3</code></td><td>Pas le 5 V : le module renverrait du 5 V sur les broches de l'ESP32</td></tr>
+      <tr><td><span class="sw" style="background:var(--wire-gnd)"></span>Afficheur GND</td><td><code>GND</code></td><td></td></tr>
+      <tr><td>Bouton (facultatif)</td><td><code>D4</code> → bouton → <code>GND</code></td><td>Le bouton BOOT de la carte fait la même chose</td></tr>
+    </tbody>
+  </table></div>
+  <div class="tw"><table>
+    <thead><tr><th>Bouton</th><th>Effet</th></tr></thead>
+    <tbody>
+      <tr><td>Appui court</td><td>Entrée suivante : 1, 2, … 40, puis 1</td></tr>
+      <tr><td>Appui maintenu</td><td>Les entrées défilent toutes seules</td></tr>
+      <tr><td>Relâché depuis 3 s</td><td>L'afficheur arrête de clignoter : l'entrée est enregistrée, même après une coupure</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <h2>Quel code sur quelle carte</h2>
+  <div class="tw"><table>
+    <thead><tr><th>Où</th><th>Fichier</th><th>Remarque</th></tr></thead>
+    <tbody>
+      <tr><td>Mac</td><td><code>atem_vers_esp32.py</code></td><td><code>python3 atem_vers_esp32.py 192.168.2.20</code>, Moniteur série d'Arduino fermé</td></tr>
+      <tr><td>ESP32 émetteur</td><td><code>emetteur_esp32_usb.ino</code></td><td>ESP32 Dev Module</td></tr>
+      <tr><td>Chaque tally</td><td><code>tally_recepteur.ino</code></td><td>Le même partout. Remplace les 8 <code>tally_camN.ino</code>.</td></tr>
+    </tbody>
+  </table></div>
+  <p class="note">Les entrées 1 à 20 de l'ATEM sont transmises. Les anciens <code>tally_camN.ino</code> marchent encore pour les entrées 1 à 8, mais sans afficheur.</p>
+</section>
+
+<section>
+  <h2>Vérifier dans l'ordre</h2>
+  <ol>
+    <li>Le script Mac affiche « Connecté à l'ATEM », puis une ligne par changement, par exemple <code>M/E 1 PGM 1 PVW 2 | M/E 2 PGM 12 PVW 6</code>.</li>
+    <li>Juste en dessous, les lignes <code>[ESP32] M/E suivies : 1</code> puis <code>[ESP32] Tally : 1:PGM 2:PVW</code> montrent ce que l'émetteur garde. Basculez un interrupteur : la ligne change aussitôt.</li>
+    <li>Au démarrage d'un tally, l'afficheur montre son entrée, puis rouge, vert et bleu s'allument chacun 300 ms. Ensuite la LED suit l'ATEM.</li>
+  </ol>
+</section>
+</main>

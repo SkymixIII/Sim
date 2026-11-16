@@ -1,0 +1,157 @@
+<title>Câblage tally USB simple</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+/* Layout : une colonne de lecture, chaque schéma dans sa propre zone défilable, fiches broche à broche en tableaux. */
+:root {
+  --bg: #f5f7f6; --surface: #ffffff; --fg: #17201d; --muted: #5b6763; --line: #c9d2ce;
+  --pcb: #1f5a45; --pcb-ink: #e9f3ee; --wire-a: #d9480f; --wire-b: #1c7ed6; --wire-gnd: #343a40; --wire-3v3: #c2255c;
+  --usb: #6741d9; --radio: #0c8599; --seg: #e03131; --dip: #1971c2;
+  --sans: "IBM Plex Sans", system-ui, sans-serif; --mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #111614; --surface: #1a211e; --fg: #e3ebe7; --muted: #9aa8a2; --line: #34403b;
+  --pcb: #2a7a5e; --pcb-ink: #f0f8f4; --wire-a: #ff7a3d; --wire-b: #4dabf7; --wire-gnd: #adb5bd; --wire-3v3: #f06595;
+  --usb: #9775fa; --radio: #3bc9db; --seg: #ff6b6b; --dip: #4dabf7; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #111614; --surface: #1a211e; --fg: #e3ebe7; --muted: #9aa8a2; --line: #34403b;
+  --pcb: #2a7a5e; --pcb-ink: #f0f8f4; --wire-a: #ff7a3d; --wire-b: #4dabf7; --wire-gnd: #adb5bd; --wire-3v3: #f06595;
+  --usb: #9775fa; --radio: #3bc9db; --seg: #ff6b6b; --dip: #4dabf7; color-scheme: dark }
+body { background: var(--bg); color: var(--fg); font: 16px/1.55 var(--sans); }
+main { max-width: 900px; margin: 0 auto; padding-block: 32px 64px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 40px; }
+h1 { font-size: 1.9rem; line-height: 1.2; margin: 0 0 8px; text-wrap: balance; }
+h2 { font-size: 1.3rem; margin: 0 0 12px; text-wrap: balance; }
+p { margin: 0 0 12px; max-width: 65ch; }
+.lead { color: var(--muted); }
+section { min-width: 0; display: grid; gap: 12px; }
+section > * { margin-bottom: 0; }
+.fig { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 12px; }
+.fig svg { display: block; min-width: 640px; width: 100%; height: auto; }
+svg text { font-family: var(--mono); fill: var(--fg); font-size: 12px; }
+svg .pcb { fill: var(--pcb); }
+svg .pcb-t { fill: var(--pcb-ink); font-weight: 600; }
+svg .pin { fill: var(--surface); stroke: var(--pcb-ink); stroke-width: 1.2; }
+svg .muted { fill: var(--muted); }
+svg .box { fill: var(--surface); stroke: var(--fg); stroke-width: 1.5; }
+.tw { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 0.95rem; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; }
+td code, p code, li code { font-family: var(--mono); font-size: 0.9em; }
+.sw { display: inline-block; width: 22px; height: 4px; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
+ol, ul { margin: 0; padding-left: 1.3em; display: grid; gap: 6px; max-width: 70ch; }
+.note { border-left: 3px solid var(--wire-a); padding: 8px 12px; background: var(--surface); }
+</style>
+
+<main>
+<header>
+  <h1>Câblage du tally ATEM par le Mac, version simple</h1>
+  <p class="lead">Le Mac est relié à l'ATEM en RJ45 et calcule le tally de chaque M/E. Il l'envoie par USB à l'ESP32 émetteur, qui diffuse le résultat en ESP-NOW. Une caméra est rouge si elle est au programme de n'importe quelle M/E. Chaque tally n'a que ses 3 LED et suit une caméra fixée dans son code.</p>
+</header>
+
+<section>
+  <h2>Vue d'ensemble</h2>
+  <div class="fig">
+    <svg viewBox="0 0 860 170" role="img" aria-label="ATEM en RJ45 vers le Mac, Mac en USB vers l'ESP32 émetteur, radio vers les tallys">
+      <rect class="box" x="10" y="55" width="140" height="60" rx="6"/>
+      <text x="80" y="80" text-anchor="middle" font-weight="600">ATEM 2 M/E</text>
+      <text x="80" y="98" text-anchor="middle" class="muted">192.168.2.20</text>
+      <line x1="150" y1="85" x2="220" y2="85" stroke="var(--usb)" stroke-width="4"/>
+      <text x="185" y="75" text-anchor="middle" style="fill:var(--usb)">RJ45</text>
+      <rect class="box" x="220" y="50" width="150" height="70" rx="6"/>
+      <text x="295" y="78" text-anchor="middle" font-weight="600">Mac</text>
+      <text x="295" y="96" text-anchor="middle" class="muted">atem_vers_esp32.py</text>
+      <line x1="370" y1="85" x2="440" y2="85" stroke="var(--wire-gnd)" stroke-width="4"/>
+      <text x="405" y="75" text-anchor="middle">USB</text>
+      <rect class="pcb" x="440" y="40" width="150" height="90" rx="6"/>
+      <text x="515" y="70" text-anchor="middle" class="pcb-t">ESP32 émetteur</text>
+      <text x="515" y="88" text-anchor="middle" class="pcb-t" font-weight="400">rien à câbler</text>
+      <text x="515" y="104" text-anchor="middle" class="pcb-t" font-weight="400">toutes les M/E</text>
+      <path d="M605 70 q12 15 0 30 M618 60 q20 25 0 50 M631 50 q28 35 0 70" fill="none" stroke="var(--radio)" stroke-width="2.5"/>
+      <text x="700" y="30" text-anchor="middle" style="fill:var(--radio)">ESP-NOW canal 1</text>
+      <rect class="pcb" x="680" y="48" width="165" height="30" rx="4"/><text x="762" y="68" text-anchor="middle" class="pcb-t">Tally CAM 1</text>
+      <rect class="pcb" x="680" y="88" width="165" height="30" rx="4"/><text x="762" y="108" text-anchor="middle" class="pcb-t">… CAM 8</text>
+      <text x="762" y="145" text-anchor="middle" class="muted">+ antennes relais</text>
+    </svg>
+  </div>
+</section>
+
+<section>
+  <h2>Émetteur</h2>
+  <p>Aucun fil à ajouter : l'ESP32 DevKit V1 est simplement branché sur le Mac par son câble USB, qui l'alimente et lui apporte le tally. Sans interrupteur câblé, il suit toutes les M/E.</p>
+  <div class="fig">
+    <svg viewBox="0 0 680 170" role="img" aria-label="Mac relié en USB à l'ESP32 émetteur">
+      <rect class="box" x="20" y="45" width="170" height="80" rx="6"/>
+      <text x="105" y="80" text-anchor="middle" font-weight="600">Mac</text>
+      <text x="105" y="98" text-anchor="middle" class="muted">port USB</text>
+      <line x1="190" y1="85" x2="380" y2="85" stroke="var(--wire-gnd)" stroke-width="5"/>
+      <text x="285" y="72" text-anchor="middle">câble USB (données)</text>
+      <rect class="pcb" x="380" y="25" width="280" height="120" rx="8"/>
+      <rect x="380" y="65" width="34" height="40" rx="3" style="fill:var(--usb)"/>
+      <text x="530" y="70" text-anchor="middle" class="pcb-t">ESP32 DevKit V1</text>
+      <text x="530" y="88" text-anchor="middle" class="pcb-t" font-weight="400">émetteur</text>
+      <text x="530" y="118" text-anchor="middle" class="pcb-t" font-weight="400">LED bleue D2 : éteinte = OK</text>
+    </svg>
+  </div>
+  <p class="note">Prenez un câble USB de données, pas un câble de charge seule : avec ce dernier, le Mac ne voit pas l'ESP32.</p>
+</section>
+
+<section>
+  <h2>Chaque tally (caméras 1 à 8)</h2>
+  <p>Même câblage que les lampes de l'établi. Une seule LED est allumée à la fois, par priorité bleu, puis rouge, puis vert.</p>
+  <div class="fig">
+    <svg viewBox="0 0 720 230" role="img" aria-label="ESP32 D18, D19, D21 vers résistances et LED rouge, verte, bleue vers GND">
+      <rect class="pcb" x="20" y="20" width="200" height="190" rx="8"/>
+      <text x="120" y="50" text-anchor="middle" class="pcb-t">ESP32 DevKit V1</text>
+      <text x="120" y="68" text-anchor="middle" class="pcb-t" font-weight="400">tally_camN</text>
+      <circle class="pin" cx="220" cy="95" r="6"/><text x="206" y="99" text-anchor="end" class="pcb-t">D18</text>
+      <circle class="pin" cx="220" cy="135" r="6"/><text x="206" y="139" text-anchor="end" class="pcb-t">D19</text>
+      <circle class="pin" cx="220" cy="175" r="6"/><text x="206" y="179" text-anchor="end" class="pcb-t">D21</text>
+      <circle class="pin" cx="120" cy="210" r="6"/><text x="120" y="198" text-anchor="middle" class="pcb-t">GND</text>
+      <g stroke="var(--fg)" stroke-width="2" fill="none">
+        <path d="M226 95 H300"/><path d="M226 135 H300"/><path d="M226 175 H300"/>
+        <rect x="300" y="87" width="60" height="16" fill="var(--surface)"/><rect x="300" y="127" width="60" height="16" fill="var(--surface)"/><rect x="300" y="167" width="60" height="16" fill="var(--surface)"/>
+        <path d="M360 95 H420"/><path d="M360 135 H420"/><path d="M360 175 H420"/>
+        <path d="M444 95 H560 V222 H120 V216"/><path d="M444 135 H560"/><path d="M444 175 H560"/>
+      </g>
+      <text x="330" y="80" text-anchor="middle">120 Ω</text><text x="330" y="120" text-anchor="middle">47 Ω</text><text x="330" y="160" text-anchor="middle">33 Ω</text>
+      <path d="M420 85 L444 95 L420 105 Z" style="fill:#e03131"/><line x1="444" y1="85" x2="444" y2="105" stroke="var(--fg)" stroke-width="2"/>
+      <path d="M420 125 L444 135 L420 145 Z" style="fill:#2f9e44"/><line x1="444" y1="125" x2="444" y2="145" stroke="var(--fg)" stroke-width="2"/>
+      <path d="M420 165 L444 175 L420 185 Z" style="fill:#1c7ed6"/><line x1="444" y1="165" x2="444" y2="185" stroke="var(--fg)" stroke-width="2"/>
+      <text x="580" y="99">rouge · PGM</text><text x="580" y="139">verte · PVW</text><text x="580" y="179">bleue · liaison</text>
+    </svg>
+  </div>
+  <p>La patte longue (anode) de chaque LED va du côté de la résistance, la patte courte (cathode) vers GND.</p>
+  <div class="tw"><table>
+    <thead><tr><th>LED</th><th>Signification</th></tr></thead>
+    <tbody>
+      <tr><td>Bleue fixe</td><td>Plus aucune trame reçue depuis 2 s</td></tr>
+      <tr><td>Bleue clignotante</td><td>L'émetteur répond, mais le Mac n'a plus l'ATEM, ou le script est arrêté</td></tr>
+      <tr><td>Rouge</td><td>Caméra au programme</td></tr>
+      <tr><td>Verte</td><td>Caméra en preview</td></tr>
+      <tr><td>Tout éteint</td><td>Caméra hors antenne</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <h2>Quel code sur quelle carte</h2>
+  <div class="tw"><table>
+    <thead><tr><th>Où</th><th>Fichier</th><th>Remarque</th></tr></thead>
+    <tbody>
+      <tr><td>Mac</td><td><code>atem_vers_esp32.py</code></td><td><code>python3 atem_vers_esp32.py 192.168.2.20</code>, Moniteur série d'Arduino fermé</td></tr>
+      <tr><td>ESP32 émetteur</td><td><code>emetteur_esp32_usb.ino</code></td><td>Le même que la version complète : sans interrupteurs, il suit toutes les M/E</td></tr>
+      <tr><td>Tally caméra N</td><td><code>tally_camN.ino</code> (N de 1 à 8)</td><td>La caméra suivie est fixée dans le fichier (<code>CAM = N</code>)</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <h2>Vérifier dans l'ordre</h2>
+  <ol>
+    <li>Le script Mac affiche « Connecté à l'ATEM », puis une ligne par changement, par exemple <code>M/E 1 PGM 1 PVW 2 | M/E 2 PGM 5 PVW 6</code>.</li>
+    <li>Juste en dessous, <code>[ESP32] M/E suivies : toutes</code> puis <code>[ESP32] Tally : 1:PGM 2:PVW 5:PGM 6:PVW</code>. La LED bleue D2 de l'émetteur s'éteint.</li>
+    <li>Au démarrage d'un tally, rouge, vert puis bleu s'allument chacun 300 ms pour tester le câblage. Ensuite la LED suit l'ATEM.</li>
+  </ol>
+</section>
+</main>

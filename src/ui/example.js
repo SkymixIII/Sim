@@ -37,7 +37,7 @@ export function exampleCircuit() {
   const c = (id, type, x, y, rot, params) => ({ id, type, x, y, rot, params });
   return {
     components: [
-      c("esp", "esp32", 8, 2, 0, { drive: 2 }),
+      { ...c("esp", "esp32", 8, 2, 0, { drive: 2 }), name: "ESP32", code: EXAMPLE_SKETCH },
       c("r1", "resistor", 20, 3, 0, { R: 220, Pmax: 0.25 }),
       c("d1", "led", 24, 3, 0, { color: "red" }),
       c("r2", "resistor", 20, 8, 0, { R: 100, Pmax: 0.25 }),
@@ -55,5 +55,6 @@ export function exampleCircuit() {
       [6, 10, 8, 10], [2, 10, 2, 7], [2, 7, 8, 7],
       [2, 15, 6, 15], [14, 19, 2, 19],
     ].map(([x1, y1, x2, y2], i) => ({ id: `w${i}`, x1, y1, x2, y2 })),
+    links: [],
   };
 }

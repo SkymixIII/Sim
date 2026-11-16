@@ -5,6 +5,7 @@ import { fmt } from "../engine/units.js";
 import { stampThevenin, stampJunctionToRail, junctionIG } from "../engine/devices.js";
 
 const VDD = 3.3;
+const esc = (s) => String(s).replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]));
 const R_PULL = 45e3;          // RPU / RPD typiques
 const G_LEAK = 50e-9 / VDD;    // IIH/IIL = 50 nA
 const CLAMP = { Is: 1e-14, n: 1 }; // diodes de protection ESD vers VDD et GND
@@ -149,12 +150,15 @@ export const esp32 = {
     return Math.min(4095, Math.round((v / 3.1) * 4095));
   },
   label: () => "",
+  // Le nom de la carte (inst.name) et la carte réelle qu'elle représente (inst.realBoard)
+  // sont affichés ; le modèle électrique reste celui de la DevKitC.
   symbol(inst, avg) {
     let s = `<rect class="board" x="20" y="-6" width="160" height="212" rx="5"/>`
       + `<rect class="module" x="48" y="2" width="104" height="58" rx="2"/>`
       + `<polyline class="antenna" points="58,10 58,18 70,18 70,10 82,10 82,18 94,18 94,10 106,10 106,18 118,18 118,10 130,10 130,18 142,18"/>`
       + `<text class="chip" x="100" y="40">ESP32</text><text class="chip small" x="100" y="52">WROOM-32</text>`
-      + `<rect class="usb" x="84" y="194" width="32" height="14" rx="2"/><text class="chip small" x="100" y="186">DevKitC</text>`;
+      + `<rect class="usb" x="84" y="194" width="32" height="14" rx="2"/>`
+      + (inst.realBoard ? `<text class="chip small" x="100" y="71">réel : ${esc(inst.realBoard)}</text>` : `<text class="chip small" x="100" y="186">DevKitC</text>`);
     for (const p of PINS) {
       const left = p.x === 0;
       const x = p.x * 20, y = p.y * 20;

@@ -12,19 +12,25 @@ src/
     devices.js         Briques physiques : jonction PN, Thévenin, ajustement Is depuis VF
     circuit.js         Schéma -> netlist, masse, PWM moyenné, détection de casse
     units.js           Formatage SI (4k7, 220 Ω, 5,84 mA)
+    network.js         Liens virtuels entre cartes : RJ45 (UDP) et radio ESP-NOW
   components/          Un fichier par famille de composants (le "plugin")
     index.js           Registre : la liste des composants disponibles
     passives.js        Masse, résistance, potentiomètre, interrupteur, bouton
     sources.js         Alimentation DC, piles (Thévenin), source de courant
     semiconductors.js  Diodes (1N4148, 1N4007, 1N5819, Zener 1N4733A), LED
     esp32.js           Carte ESP32-DevKitC : GPIO, pull-ups, diodes de protection, ADC
+    atem.js            Mélangeur ATEM Constellation, côté réseau (protocole UDP 9910)
   runtime/
     arduino.js         Exécute un sketch Arduino (sous-ensemble) sur l'ESP32 simulé
+    bench.js           Banc d'essai : un sketch par carte, circuit commun, réseau virtuel
   ui/
-    app.js             Plan de travail SVG, palette, mesures, éditeur de code
+    app.js             Plan de travail SVG, palette, mesures, éditeur de code, liens
     example.js         Montage et sketch de démonstration
+    montages/tally.js  Tally ATEM 8 caméras : ATEM, émetteur, 8 lampes et 2 antennes relais, avec leurs sketches
+firmware/              Firmware Arduino réel des montages (voir firmware/README.md)
 tests/
   datasheet.test.mjs   Chaque modèle confronté aux points de sa fiche technique
+  tally.test.mjs       Le tally complet tourne : pupitre ATEM, câble, radio, LED ; renvois du protocole ATEM
 docs/
   AJOUTER-UN-COMPOSANT.md   Procédure suivie par Claude pour intégrer un nouveau composant
 ```
@@ -71,6 +77,22 @@ Le modèle électrique suit le tableau *DC Characteristics* de la fiche Espressi
 - états après reset des broches de strapping (GPIO2 en pull-down, GPIO5 en pull-up).
 
 Le code est un **sous-ensemble d'Arduino** converti en JavaScript asynchrone (`delay()` rend la main au navigateur). Ce n'est pas une émulation du processeur Xtensa : le timing est celui du navigateur, et les bibliothèques C++ ne sont pas disponibles. Une étape ultérieure pourra brancher un vrai émulateur de jeu d'instructions (QEMU-ESP32 compilé en WebAssembly) sur la même interface `setPin / read`.
+
+## Plusieurs cartes et liens virtuels
+
+Chaque composant programmable porte son propre code (`code`), un nom (`name`) et, s'il représente une autre carte réelle, `realBoard` (ex. WT32-ETH01) : le modèle électrique reste celui de la DevKitC, le nom réel est affiché sur la carte. `runtime/bench.js` lance un `SketchRunner` par carte ; toutes partagent la même simulation électrique.
+
+Ce qui n'est pas un fil de cuivre passe par `circuit.links` : `{ id, kind: "rj45" | "espnow", a, b, cut, loss }`. `engine/network.js` livre les octets :
+
+- **rj45** : point à point, sans perte, monté si le câble est branché et que les deux cartes tournent.
+- **espnow** : diffusion vers toutes les cartes reliées, sur le même canal Wi-Fi, avec une perte réglable (portée).
+- **carte radio** (`circuit.radio`, prioritaire sur les liens espnow) : chaque appareil a une position en mètres et une portée, chaque paire un obstacle éventuel. Une diffusion atteint tout appareil allumé sur le même canal avec une probabilité qui dépend de la distance (100 % jusqu'à 70 % de la portée de l'émetteur, puis décroissante). C'est ce qui permet de simuler le maillage des lampes.
+
+Dans un sketch : `Rj45.send(buf, n)`, `n = Rj45.receive(buf)`, `Rj45.linkUp()`, `EspNow.begin(canal)`, `EspNow.broadcast(buf, n)`, `n = EspNow.receive(buf)`. Les tableaux sont passés par référence, comme un `uint8_t*`. Sur le plan, un clic sur un lien permet de le débrancher, de le mettre hors de portée ou d'en lire le trafic.
+
+### Appareils réseau
+
+Un composant sans broche qui déclare `device` (une classe avec `tick()`) est un appareil réseau : le banc l'exécute toutes les 5 ms avec son port du réseau virtuel, sans sketch. C'est le cas de l'ATEM (`components/atem.js`) : poignée de main, état initial en plusieurs paquets, renvoi des paquets non acquittés, ping toutes les 500 ms, client oublié après 2,5 s de silence, tally `TlIn` et position de transition `TrPs` pendant un AUTO. Son pupitre est cliquable (`press(inst, down, key)` reçoit la touche via `data-key`).
 
 ## Pile technique et suite
 

@@ -1,0 +1,752 @@
+<title>Codes tally version 2</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+/* Layout : une colonne, un bloc de code par carte, bouton Copier en tête de chaque bloc. */
+:root { --bg:#f5f7f6; --surface:#ffffff; --fg:#17201d; --muted:#5b6763; --line:#c9d2ce; --accent:#1f5a45; --accent-ink:#ffffff; --code-bg:#f0f3f1;
+  --sans:"IBM Plex Sans",system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,monospace; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg:#111614; --surface:#1a211e; --fg:#e3ebe7; --muted:#9aa8a2; --line:#34403b; --accent:#2a7a5e; --accent-ink:#ffffff; --code-bg:#151b18; color-scheme:dark } }
+:root[data-theme="dark"] { --bg:#111614; --surface:#1a211e; --fg:#e3ebe7; --muted:#9aa8a2; --line:#34403b; --accent:#2a7a5e; --accent-ink:#ffffff; --code-bg:#151b18; color-scheme:dark }
+body { background:var(--bg); color:var(--fg); font:16px/1.55 var(--sans); }
+main { max-width:960px; margin:0 auto; padding-block:32px 64px; padding-left:max(16px, env(safe-area-inset-left, 0px)); padding-right:max(16px, env(safe-area-inset-right, 0px)); display:grid; gap:36px; }
+h1 { font-size:1.9rem; margin:0 0 8px; text-wrap:balance; }
+h2 { font-size:1.3rem; margin:0; }
+p { margin:0; max-width:68ch; }
+.lead { color:var(--muted); }
+section { display:grid; gap:12px; min-width:0; }
+.tete { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; }
+code { font-family:var(--mono); font-size:.92em; }
+button { font:600 .95rem var(--sans); background:var(--accent); color:var(--accent-ink); border:0; border-radius:6px; padding:8px 16px; cursor:pointer; }
+button:focus-visible { outline:3px solid var(--fg); outline-offset:2px; }
+pre { margin:0; background:var(--code-bg); border:1px solid var(--line); border-radius:8px; padding:14px; overflow:auto; max-height:70vh; font:12.5px/1.5 var(--mono); tab-size:2; }
+.meta { color:var(--muted); font-size:.92rem; }
+</style>
+<main>
+<header>
+  <h1>Codes tally version 2</h1>
+  <p class="lead">Les deux codes de la version 2 : l'émetteur WT32-ETH01 avec interrupteurs de M/E, et le tally ESP32-C3 avec afficheur et boutons + et −. Le même code tally sert pour tous les boîtiers : l'entrée se règle ensuite aux boutons.</p>
+</header>
+
+<section>
+  <div class="tete"><h2>Émetteur · <code>emetteur_v2.ino</code></h2><button type="button" id="copier-em" data-cible="code-em">Copier</button></div>
+  <p class="meta">Carte : ESP32 Dev Module. Aucune bibliothèque. Réglages en haut du fichier : <code>IP_ATEM</code>, <code>IP_EMETTEUR</code>. Les M/E se choisissent avec les interrupteurs sur IO4, IO14, IO32 et IO33. Téléversement par l'adaptateur USB-série sur J2, avec IO0 relié à GND.</p>
+  <pre id="code-em">// ============================================================================
+//  VERSION 2 · Émetteur tally ATEM -&gt; ESP-NOW  ·  WT32-ETH01 + interrupteurs de M/E
+// ----------------------------------------------------------------------------
+//  Le WT32-ETH01 est branché à l&#x27;ATEM par son RJ45. Il parle lui-même
+//  le protocole ATEM (UDP 9910) et calcule ce qui est à l&#x27;antenne sur chaque M/E :
+//    - source de programme et de preview ;
+//    - clés en incrustation (DVE, luma, chroma, motif) : leur source de remplissage ;
+//    - SuperSource : sources des boîtes actives et le fond ;
+//    - multiview envoyé comme source : les sources de ses fenêtres ;
+//    - sortie d&#x27;une M/E utilisée dans une autre, DSK (sur la M/E 1), transitions.
+//  Le tally est diffusé en ESP-NOW (trame v2, une case par entrée SDI),
+//  10 fois par seconde et tout de suite à chaque changement.
+//
+//  Interrupteurs de choix des M/E (facultatifs) :
+//    ME1 -&gt; IO4   ME2 -&gt; IO14   ME3 -&gt; IO32   ME4 -&gt; IO33   (l&#x27;autre côté à GND)
+//    ON = M/E suivie. Aucun interrupteur câblé, ou tous sur OFF = toutes les M/E.
+//    Une entrée est ROUGE si elle est au programme de l&#x27;une des M/E suivies,
+//    sinon VERTE si elle est en preview sur l&#x27;une d&#x27;elles.
+//  (Ne pas utiliser IO12 : s&#x27;il est tiré à 3,3 V au démarrage, la carte ne démarre pas.)
+//
+//  Alimentation : 5V et GND du WT32-ETH01 (ou 3V3 et GND).
+//  Téléversement : adaptateur USB-série 3,3 V : TX -&gt; RX0, RX -&gt; TX0, GND -&gt; GND,
+//  et IO0 relié à GND pendant la mise sous tension (à retirer ensuite).
+//  LED sur IO2 : allumée = pas connecté à l&#x27;ATEM.
+//
+//  Aucune bibliothèque externe.  Carte : « ESP32 Dev Module » (ou « WT32-ETH01 Ethernet Module »).
+//  Moniteur série : 115200 bauds.
+// ============================================================================
+#include &lt;ETH.h&gt;
+#include &lt;WiFi.h&gt;
+#include &lt;WiFiUdp.h&gt;
+#include &lt;esp_now.h&gt;
+#include &lt;esp_wifi.h&gt;
+
+// ---------- Réglages ----------
+static const uint8_t  IP_ATEM[4] = {192, 168, 2, 20};
+static const uint8_t  IP_EMETTEUR[4] = {192, 168, 2, 52};  // adresse du WT32 : doit être libre sur le réseau
+static const uint8_t  MASQUE[4] = {255, 255, 255, 0};
+static const uint8_t  NB_ENTREES = 20;      // entrées SDI transmises (40 au plus)
+static const uint8_t  CANAL_ESPNOW = 1;
+static const uint16_t PORT_ATEM = 9910;
+static const uint16_t PORT_LOCAL = 50910;
+static const uint32_t PERIODE_RADIO_MS = 100;
+static const uint32_t TIMEOUT_ATEM_MS = 2500;
+static const uint32_t RELANCE_HELLO_MS = 1000;
+static const uint8_t  TTL_MAX = 6;
+static const int      LED_STATUT = 2;
+static const uint8_t  NB_INTER = 4;
+static const int      INTER_ME[NB_INTER] = {4, 14, 32, 33};    // IO4, IO14, IO32, IO33
+
+// ---------- WT32-ETH01 : PHY LAN8720 ----------
+static const int ETH_ADRESSE = 1;
+static const int ETH_ALIM = 16;      // active l&#x27;oscillateur 50 MHz du PHY
+static const int ETH_MDC_BROCHE = 23;
+static const int ETH_MDIO_BROCHE = 18;
+
+// ---------- Protocole ATEM ----------
+static const uint8_t F_ACK_DEMANDE = 0x08;
+static const uint8_t F_HELLO = 0x10;
+static const uint8_t F_ACK = 0x80;
+enum EtatLien { DECONNECTE, HELLO_ENVOYE, CONNECTE };
+static const uint8_t BROADCAST[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+
+// ---------- État de l&#x27;ATEM ----------
+static const uint8_t MAX_ME = 4, MAX_CLES = 4, MAX_DSK = 4, MAX_SS = 2, MAX_BOITES = 4, MAX_MV = 4, MAX_FEN = 16;
+struct Atem {
+  uint16_t verMaj, verMin;
+  uint8_t nbMe;
+  uint16_t prg[MAX_ME], prv[MAX_ME];
+  bool enTransition[MAX_ME];
+  uint8_t selection[MAX_ME];                 // bit 0 fond, bits 1.. clés de la prochaine transition
+  bool cleAir[MAX_ME][MAX_CLES];
+  uint8_t cleType[MAX_ME][MAX_CLES];         // 3 = DVE
+  uint16_t cleFill[MAX_ME][MAX_CLES];
+  bool dskAir[MAX_DSK], dskTr[MAX_DSK], dskLie[MAX_DSK];
+  uint16_t dskFill[MAX_DSK];
+  bool ssActive[MAX_SS][MAX_BOITES];
+  uint16_t ssSource[MAX_SS][MAX_BOITES], ssFond[MAX_SS];
+  uint16_t mv[MAX_MV][MAX_FEN];
+} atem;
+
+EtatLien etat = DECONNECTE;
+uint16_t sessionId = 0x53AB;
+uint32_t dernierRecu = 0, dernierHello = 0, dernierRadio = 0, dernierLien = 0, dernierInter = 0;
+uint8_t seq = 0;
+uint8_t tally[40] = {0};
+uint64_t pgmMe[MAX_ME], pvwMe[MAX_ME];       // bit k = entrée k+1
+uint8_t masqueMe = 0xFF;
+bool aRecalculer = false;
+uint8_t rx[1600];
+uint8_t tx[32];
+int ledActuelle = -1;
+WiFiUDP udp;
+bool cableBranche = false;
+
+void diffuser();
+
+// ---------------------------------------------------------------------------
+//  Calcul : quelles entrées sont visibles dans une source
+// ---------------------------------------------------------------------------
+uint64_t programme(int me, int prof, bool avecDsk = true);
+uint64_t preview(int me, int prof);
+
+uint64_t visible(uint16_t src, int prof) {
+  if (prof &gt; 6 || src == 0) return 0;                    // garde-fou contre les boucles
+  if (src &lt;= 40) return 1ULL &lt;&lt; (src - 1);               // entrée physique
+  if (src &lt; 1000) return 0;
+  if (src &gt;= 6000 &amp;&amp; src &lt; 6000 + MAX_SS) {              // SuperSource
+    int n = src - 6000;
+    uint64_t m = visible(atem.ssFond[n], prof + 1);
+    for (int b = 0; b &lt; MAX_BOITES; b++) if (atem.ssActive[n][b]) m |= visible(atem.ssSource[n][b], prof + 1);
+    return m;
+  }
+  if (src &gt;= 7001 &amp;&amp; src &lt;= 7009) return programme(0, prof + 1, false);   // clean feed
+  if (src &gt;= 9001 &amp;&amp; src &lt; 9001 + MAX_MV) {              // multiview
+    int n = src - 9001;
+    uint64_t m = 0;
+    for (int f = 0; f &lt; MAX_FEN; f++) m |= visible(atem.mv[n][f], prof + 1);
+    return m;
+  }
+  if (src &gt;= 10010 &amp;&amp; src &lt;= 10999) {                    // sortie de M/E : 10010 prog M/E 1, 10011 prev
+    int me = (src - 10000) / 10 - 1, quoi = src % 10;
+    if (me &lt; 0 || me &gt;= MAX_ME) return 0;
+    if (quoi == 0) return programme(me, prof + 1);
+    if (quoi == 1) return preview(me, prof + 1);
+  }
+  return 0;
+}
+
+uint64_t programme(int me, int prof, bool avecDsk) {
+  bool tr = atem.enTransition[me];
+  uint8_t sel = atem.selection[me];
+  uint64_t m = visible(atem.prg[me], prof);
+  if (tr &amp;&amp; (sel &amp; 1)) m |= visible(atem.prv[me], prof);          // mix en cours
+  for (int k = 0; k &lt; MAX_CLES; k++)
+    if (atem.cleAir[me][k] || (tr &amp;&amp; (sel &amp; (2 &lt;&lt; k)))) m |= visible(atem.cleFill[me][k], prof);
+  if (me == 0 &amp;&amp; avecDsk)
+    for (int d = 0; d &lt; MAX_DSK; d++)
+      if (atem.dskAir[d] || atem.dskTr[d]) m |= visible(atem.dskFill[d], prof);
+  return m;
+}
+
+uint64_t preview(int me, int prof) {
+  uint8_t sel = atem.selection[me];
+  uint64_t m = visible((sel &amp; 1) ? atem.prv[me] : atem.prg[me], prof);
+  for (int k = 0; k &lt; MAX_CLES; k++)
+    if (atem.cleAir[me][k] != (bool)(sel &amp; (2 &lt;&lt; k))) m |= visible(atem.cleFill[me][k], prof);
+  if (me == 0)
+    for (int d = 0; d &lt; MAX_DSK; d++)
+      if (atem.dskAir[d] != atem.dskLie[d]) m |= visible(atem.dskFill[d], prof);
+  return m;
+}
+
+int nbMeConnues() {
+  int n = atem.nbMe;
+  for (int m = 0; m &lt; MAX_ME; m++) if (atem.prg[m] &amp;&amp; n &lt; m + 1) n = m + 1;
+  return n &lt; MAX_ME ? n : MAX_ME;
+}
+
+void listerEntrees(uint64_t m) {
+  bool rien = true;
+  for (int k = 0; k &lt; NB_ENTREES; k++) if (m &amp; (1ULL &lt;&lt; k)) { Serial.printf(&quot;%s%d&quot;, rien ? &quot;&quot; : &quot;,&quot;, k + 1); rien = false; }
+  if (rien) Serial.print(&quot;-&quot;);
+}
+
+// Recalcule chaque M/E, puis combine les M/E choisies par les interrupteurs
+void recalculer(bool forcer) {
+  int nb = nbMeConnues();
+  bool meChange = false;
+  for (int m = 0; m &lt; MAX_ME; m++) {
+    uint64_t pg = m &lt; nb ? programme(m, 0) : 0, pv = m &lt; nb ? preview(m, 0) : 0;
+    if (pg != pgmMe[m] || pv != pvwMe[m]) meChange = true;
+    pgmMe[m] = pg; pvwMe[m] = pv;
+  }
+  if (meChange) {
+    for (int m = 0; m &lt; nb; m++) {
+      Serial.printf(&quot;%sM/E %d PGM &quot;, m ? &quot; | &quot; : &quot;&quot;, m + 1); listerEntrees(pgmMe[m]);
+      Serial.print(&quot; PVW &quot;); listerEntrees(pvwMe[m]);
+    }
+    Serial.println();
+  }
+  uint64_t pg = 0, pv = 0;
+  for (int m = 0; m &lt; nb; m++) if (masqueMe &amp; (1 &lt;&lt; m)) { pg |= pgmMe[m]; pv |= pvwMe[m]; }
+  uint8_t n[40] = {0};
+  for (int k = 0; k &lt; NB_ENTREES; k++) n[k] = (pg &amp; (1ULL &lt;&lt; k)) ? 1 : (pv &amp; (1ULL &lt;&lt; k)) ? 2 : 0;
+  if (!forcer &amp;&amp; memcmp(n, tally, sizeof(tally)) == 0) return;
+  memcpy(tally, n, sizeof(tally));
+  Serial.print(&quot;Tally :&quot;);
+  bool rien = true;
+  for (int k = 0; k &lt; NB_ENTREES; k++) if (tally[k]) { Serial.printf(&quot; %d:%s&quot;, k + 1, tally[k] == 1 ? &quot;PGM&quot; : &quot;PVW&quot;); rien = false; }
+  Serial.println(rien ? &quot; aucune entrée&quot; : &quot;&quot;);
+  diffuser();                                              // tout de suite, sans attendre
+}
+
+// ---------------------------------------------------------------------------
+//  Lecture des commandes de l&#x27;ATEM
+// ---------------------------------------------------------------------------
+static inline uint16_t u16(const uint8_t *p) { return (p[0] &lt;&lt; 8) | p[1]; }
+
+void lireCommande(const char *nom, const uint8_t *c, int l) {
+  bool v8 = atem.verMaj &gt; 2 || (atem.verMaj == 2 &amp;&amp; atem.verMin &gt;= 28);
+  if (!memcmp(nom, &quot;_ver&quot;, 4) &amp;&amp; l &gt;= 4) { atem.verMaj = u16(c); atem.verMin = u16(c + 2); return; }
+  if (!memcmp(nom, &quot;_top&quot;, 4) &amp;&amp; l &gt;= 1) { atem.nbMe = c[0]; }
+  else if (!memcmp(nom, &quot;PrgI&quot;, 4) &amp;&amp; l &gt;= 4 &amp;&amp; c[0] &lt; MAX_ME) atem.prg[c[0]] = u16(c + 2);
+  else if (!memcmp(nom, &quot;PrvI&quot;, 4) &amp;&amp; l &gt;= 4 &amp;&amp; c[0] &lt; MAX_ME) atem.prv[c[0]] = u16(c + 2);
+  else if (!memcmp(nom, &quot;KeOn&quot;, 4) &amp;&amp; l &gt;= 3 &amp;&amp; c[0] &lt; MAX_ME &amp;&amp; c[1] &lt; MAX_CLES) atem.cleAir[c[0]][c[1]] = c[2];
+  else if (!memcmp(nom, &quot;KeBS&quot;, 4) &amp;&amp; l &gt;= 10 &amp;&amp; c[0] &lt; MAX_ME &amp;&amp; c[1] &lt; MAX_CLES) {
+    atem.cleType[c[0]][c[1]] = c[2];
+    atem.cleFill[c[0]][c[1]] = u16(c + 8);
+  }
+  else if (!memcmp(nom, &quot;TrPs&quot;, 4) &amp;&amp; l &gt;= 2 &amp;&amp; c[0] &lt; MAX_ME) atem.enTransition[c[0]] = c[1] &amp; 1;
+  else if (!memcmp(nom, &quot;TrSS&quot;, 4) &amp;&amp; l &gt;= 3 &amp;&amp; c[0] &lt; MAX_ME) atem.selection[c[0]] = c[2];
+  else if (!memcmp(nom, &quot;DskB&quot;, 4) &amp;&amp; l &gt;= 4 &amp;&amp; c[0] &lt; MAX_DSK) atem.dskFill[c[0]] = u16(c + 2);
+  else if (!memcmp(nom, &quot;DskS&quot;, 4) &amp;&amp; l &gt;= 3 &amp;&amp; c[0] &lt; MAX_DSK) { atem.dskAir[c[0]] = c[1]; atem.dskTr[c[0]] = c[2]; }
+  else if (!memcmp(nom, &quot;DskP&quot;, 4) &amp;&amp; l &gt;= 2 &amp;&amp; c[0] &lt; MAX_DSK) atem.dskLie[c[0]] = c[1];
+  else if (!memcmp(nom, &quot;SSBP&quot;, 4)) {
+    if (v8 &amp;&amp; l &gt;= 6 &amp;&amp; c[0] &lt; MAX_SS &amp;&amp; c[1] &lt; MAX_BOITES) { atem.ssActive[c[0]][c[1]] = c[2]; atem.ssSource[c[0]][c[1]] = u16(c + 4); }
+    else if (!v8 &amp;&amp; l &gt;= 4 &amp;&amp; c[0] &lt; MAX_BOITES) { atem.ssActive[0][c[0]] = c[1]; atem.ssSource[0][c[0]] = u16(c + 2); }
+    else return;
+  }
+  else if (!memcmp(nom, &quot;SSrc&quot;, 4)) {
+    if (v8 &amp;&amp; l &gt;= 4 &amp;&amp; c[0] &lt; MAX_SS) atem.ssFond[c[0]] = u16(c + 2);
+    else if (!v8 &amp;&amp; l &gt;= 2) atem.ssFond[0] = u16(c);
+    else return;
+  }
+  else if (!memcmp(nom, &quot;MvIn&quot;, 4) &amp;&amp; l &gt;= 4 &amp;&amp; c[0] &lt; MAX_MV &amp;&amp; c[1] &lt; MAX_FEN) atem.mv[c[0]][c[1]] = u16(c + 2);
+  else if (!memcmp(nom, &quot;InCm&quot;, 4)) { Serial.printf(&quot;État de l&#x27;ATEM reçu : %d M/E\n&quot;, atem.nbMe); }
+  else return;
+  aRecalculer = true;
+}
+
+// ---------------------------------------------------------------------------
+//  Client ATEM
+// ---------------------------------------------------------------------------
+void envoyerUdp(const uint8_t *buf, uint16_t len) {
+  udp.beginPacket(IPAddress(IP_ATEM[0], IP_ATEM[1], IP_ATEM[2], IP_ATEM[3]), PORT_ATEM);
+  udp.write(buf, len);
+  udp.endPacket();
+}
+
+void envoyerHello() {
+  memset(tx, 0, 20);
+  sessionId = 0x5300 | (esp_random() &amp; 0xFF);
+  tx[0] = F_HELLO; tx[1] = 20;
+  tx[2] = sessionId &gt;&gt; 8; tx[3] = sessionId &amp; 0xFF;
+  tx[9] = 0x3A;
+  tx[12] = 0x01;
+  envoyerUdp(tx, 20);
+  etat = HELLO_ENVOYE;
+  dernierHello = millis();
+}
+
+void envoyerAck(uint16_t session, uint16_t id) {
+  memset(tx, 0, 12);
+  tx[0] = F_ACK; tx[1] = 12;
+  tx[2] = session &gt;&gt; 8; tx[3] = session &amp; 0xFF;
+  tx[4] = id &gt;&gt; 8; tx[5] = id &amp; 0xFF;
+  envoyerUdp(tx, 12);
+}
+
+void oublierAtem() {
+  memset(&amp;atem, 0, sizeof(atem));
+  for (int m = 0; m &lt; MAX_ME; m++) atem.selection[m] = 1;   // par défaut : la transition prend le fond
+  memset(pgmMe, 0, sizeof(pgmMe));
+  memset(pvwMe, 0, sizeof(pvwMe));
+  memset(tally, 0, sizeof(tally));
+}
+
+void traiterPaquet(int n) {
+  if (n &lt; 12) return;
+  uint8_t drapeaux = rx[0] &amp; 0xF8;
+  int longueur = ((rx[0] &amp; 0x07) &lt;&lt; 8) | rx[1];
+  if (longueur &lt; 12 || longueur &gt; n) return;
+  uint16_t session = (rx[2] &lt;&lt; 8) | rx[3];
+  uint16_t idDistant = (rx[10] &lt;&lt; 8) | rx[11];
+
+  if (drapeaux &amp; F_HELLO) {
+    if (longueur &gt;= 13 &amp;&amp; rx[12] == 0x02) {
+      envoyerAck(session, 0);
+      oublierAtem();
+      etat = CONNECTE;
+      dernierRecu = millis();
+      Serial.println(&quot;Connecté à l&#x27;ATEM, lecture de son état...&quot;);
+    } else if (longueur &gt;= 13 &amp;&amp; rx[12] == 0x03) {
+      Serial.println(&quot;L&#x27;ATEM refuse la connexion (trop de clients ?)&quot;);
+    }
+    return;
+  }
+  if (etat != CONNECTE) return;
+  dernierRecu = millis();
+  sessionId = session;
+  if (drapeaux &amp; F_ACK_DEMANDE) envoyerAck(session, idDistant);
+
+  int i = 12;
+  while (i + 8 &lt;= longueur) {
+    int l = (rx[i] &lt;&lt; 8) | rx[i + 1];
+    if (l &lt; 8 || i + l &gt; longueur) break;
+    lireCommande((const char *)&amp;rx[i + 4], &amp;rx[i + 8], l - 8);
+    i += l;
+  }
+}
+
+// ---------------------------------------------------------------------------
+//  Interrupteurs et câble réseau
+// ---------------------------------------------------------------------------
+uint8_t lireInterrupteurs() {
+  uint8_t m = 0;
+  for (int i = 0; i &lt; NB_INTER; i++) if (digitalRead(INTER_ME[i]) == LOW) m |= 1 &lt;&lt; i;
+  return m ? m : 0xFF;
+}
+
+void afficherChoix() {
+  if (masqueMe == 0xFF) { Serial.println(&quot;M/E suivies : toutes&quot;); return; }
+  Serial.print(&quot;M/E suivies :&quot;);
+  for (int i = 0; i &lt; NB_INTER; i++) if (masqueMe &amp; (1 &lt;&lt; i)) Serial.printf(&quot; %d&quot;, i + 1);
+  Serial.println();
+}
+
+void surveillerCable() {
+  bool b = ETH.linkUp();
+  if (b == cableBranche) return;
+  cableBranche = b;
+  etat = DECONNECTE;
+  dernierHello = 0;
+  oublierAtem();
+  Serial.println(b ? &quot;Câble réseau branché&quot; : &quot;Câble réseau débranché !&quot;);
+}
+
+// ---------------------------------------------------------------------------
+//  ESP-NOW : trame v2, 8 octets d&#x27;en-tête + une case par entrée
+// ---------------------------------------------------------------------------
+void diffuser() {
+  bool ok = etat == CONNECTE;
+  uint8_t m[8 + 40];
+  m[0] = &#x27;T&#x27;; m[1] = &#x27;L&#x27;; m[2] = 2;
+  m[3] = seq++;
+  m[4] = ok ? 1 : 0;
+  m[5] = NB_ENTREES;
+  m[6] = TTL_MAX;
+  m[7] = 0;
+  for (int k = 0; k &lt; NB_ENTREES; k++) m[8 + k] = ok ? tally[k] : 0;
+  esp_now_send(BROADCAST, m, 8 + NB_ENTREES);
+  dernierRadio = millis();
+}
+
+void demarrerEspNow() {
+  WiFi.mode(WIFI_STA);
+  WiFi.disconnect();
+  esp_wifi_set_promiscuous(true);
+  esp_wifi_set_channel(CANAL_ESPNOW, WIFI_SECOND_CHAN_NONE);
+  esp_wifi_set_promiscuous(false);
+  if (esp_now_init() != ESP_OK) { Serial.println(&quot;Erreur esp_now_init&quot;); return; }
+  esp_now_peer_info_t pair = {};
+  memcpy(pair.peer_addr, BROADCAST, 6);
+  pair.channel = CANAL_ESPNOW;
+  pair.ifidx = WIFI_IF_STA;
+  pair.encrypt = false;
+  if (esp_now_add_peer(&amp;pair) != ESP_OK) Serial.println(&quot;Erreur esp_now_add_peer&quot;);
+}
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(LED_STATUT, OUTPUT);
+  digitalWrite(LED_STATUT, HIGH);
+  for (int i = 0; i &lt; NB_INTER; i++) pinMode(INTER_ME[i], INPUT_PULLUP);
+  delay(5);
+  masqueMe = lireInterrupteurs();
+  oublierAtem();
+  demarrerEspNow();
+
+#if ESP_ARDUINO_VERSION_MAJOR &gt;= 3
+  ETH.begin(ETH_PHY_LAN8720, ETH_ADRESSE, ETH_MDC_BROCHE, ETH_MDIO_BROCHE, ETH_ALIM, ETH_CLOCK_GPIO0_IN);
+#else
+  ETH.begin(ETH_ADRESSE, ETH_ALIM, ETH_MDC_BROCHE, ETH_MDIO_BROCHE, ETH_PHY_LAN8720, ETH_CLOCK_GPIO0_IN);
+#endif
+  IPAddress ip(IP_EMETTEUR[0], IP_EMETTEUR[1], IP_EMETTEUR[2], IP_EMETTEUR[3]);
+  IPAddress masque(MASQUE[0], MASQUE[1], MASQUE[2], MASQUE[3]);
+  IPAddress routeur(IP_EMETTEUR[0], IP_EMETTEUR[1], IP_EMETTEUR[2], 1);
+  ETH.config(ip, routeur, masque);               // IP fixe (pas de DHCP)
+  udp.begin(PORT_LOCAL);
+  Serial.printf(&quot;Ethernet prêt, WT32 en %d.%d.%d.%d\n&quot;, IP_EMETTEUR[0], IP_EMETTEUR[1], IP_EMETTEUR[2], IP_EMETTEUR[3]);
+  surveillerCable();
+  Serial.printf(&quot;Émetteur prêt, ATEM %d.%d.%d.%d, ESP-NOW canal %d, entrées 1 à %d\n&quot;,
+                IP_ATEM[0], IP_ATEM[1], IP_ATEM[2], IP_ATEM[3], CANAL_ESPNOW, NB_ENTREES);
+  afficherChoix();
+}
+
+void loop() {
+  if (millis() - dernierLien &gt;= 1000) { surveillerCable(); dernierLien = millis(); }
+
+  // Paquets de l&#x27;ATEM (au plus 20 par tour pour garder la radio régulière)
+  for (int k = 0; k &lt; 20; k++) {
+    int n = udp.parsePacket();
+    if (n &lt;= 0) break;
+    int lu = udp.read(rx, sizeof(rx));
+    IPAddress ip = udp.remoteIP();
+    if (ip[0] == IP_ATEM[0] &amp;&amp; ip[1] == IP_ATEM[1] &amp;&amp; ip[2] == IP_ATEM[2] &amp;&amp; ip[3] == IP_ATEM[3]) traiterPaquet(lu);
+  }
+  if (aRecalculer) { aRecalculer = false; recalculer(false); }
+
+  if (millis() - dernierInter &gt;= 50) {
+    dernierInter = millis();
+    uint8_t m = lireInterrupteurs();
+    if (m != masqueMe) { masqueMe = m; afficherChoix(); recalculer(true); }
+  }
+
+  if (cableBranche &amp;&amp; etat != CONNECTE &amp;&amp; millis() - dernierHello &gt;= RELANCE_HELLO_MS) envoyerHello();
+  if (etat == CONNECTE &amp;&amp; millis() - dernierRecu &gt; TIMEOUT_ATEM_MS) {
+    etat = DECONNECTE;
+    oublierAtem();
+    Serial.println(&quot;ATEM perdu, nouvelle tentative...&quot;);
+  }
+
+  int led = (etat == CONNECTE) ? LOW : HIGH;
+  if (led != ledActuelle) { digitalWrite(LED_STATUT, led); ledActuelle = led; }
+  if (millis() - dernierRadio &gt;= PERIODE_RADIO_MS) diffuser();
+}
+</pre>
+</section>
+
+<section>
+  <div class="tete"><h2>Tally · <code>tally_v2.ino</code></h2><button type="button" id="copier-rx" data-cible="code-rx">Copier</button></div>
+  <p class="meta">Carte : ESP32C3 Dev Module, « USB CDC On Boot : Disabled » (mettre Enabled seulement si la carte n'a pas de puce USB-série). Bibliothèque « Adafruit NeoPixel ». Rien à modifier : chaque tally démarre sur l'entrée 1, puis on la règle avec les boutons + et −.</p>
+  <pre id="code-rx">// ============================================================================
+//  VERSION 2 · Tally  ·  ESP32-C3-DevKitM-1 + LED WS2812B + afficheur TM1637
+// ----------------------------------------------------------------------------
+//  Le même code sur tous les tallys : l&#x27;entrée SDI lue se règle avec les
+//  boutons + et −, et s&#x27;affiche sur l&#x27;afficheur 7 segments (« 7 », « 12 »),
+//  sur les deux chiffres de droite du module 4 chiffres.
+//
+//  Câblage (ESP32-C3-DevKitM-1) :
+//    GPIO4  -&gt; 330 Ω -&gt; DIN de la WS2812B      5V  -&gt; VDD,  GND -&gt; GND
+//    GPIO5  -&gt; CLK du TM1637                   GPIO6 -&gt; DIO du TM1637
+//    3V3    -&gt; VCC du TM1637                   GND -&gt; GND du TM1637
+//    GPIO7  -&gt; bouton « + » -&gt; GND             GPIO10 -&gt; bouton « − » -&gt; GND
+//
+//  Boutons :
+//    appui court     -&gt; entrée suivante (+) ou précédente (−), de 1 à 20
+//    appui maintenu  -&gt; défile tout seul
+//    L&#x27;afficheur clignote tant que le choix n&#x27;est pas enregistré ; il est gardé
+//    en mémoire 3 s après le dernier appui, même après une coupure.
+//
+//  LED, une seule couleur à la fois, priorité BLEU &gt; ROUGE &gt; VERT :
+//    bleu fixe        -&gt; plus aucune trame reçue depuis 2 s
+//    bleu clignotant  -&gt; l&#x27;émetteur répond mais n&#x27;a plus l&#x27;ATEM
+//    rouge            -&gt; entrée au programme
+//    vert             -&gt; entrée en preview
+//    éteinte          -&gt; hors antenne
+//
+//  Maillage : chaque trame nouvelle est rediffusée une fois (TTL - 1).
+//  Bibliothèque : « Adafruit NeoPixel ».
+//  Carte : « ESP32C3 Dev Module », USB CDC On Boot : Disabled (puce USB-série de la carte).
+// ============================================================================
+#include &lt;WiFi.h&gt;
+#include &lt;esp_now.h&gt;
+#include &lt;esp_wifi.h&gt;
+#include &lt;Preferences.h&gt;
+#include &lt;Adafruit_NeoPixel.h&gt;
+
+static const uint8_t  ENTREE_DEPART = 1;     // entrée utilisée la toute première fois
+static const uint8_t  MAX_ENTREES = 20;     // entrées envoyées par l&#x27;émetteur
+static const bool     RELAIS = true;
+static const uint8_t  CANAL_ESPNOW = 1;
+static const uint32_t TIMEOUT_MS = 2000;
+static const int      PIN_WS2812 = 4;        // GPIO4
+static const uint8_t  LUMINOSITE_LED = 160;  // 0 à 255
+static const int      TM_CLK = 5;            // GPIO5
+static const int      TM_DIO = 6;            // GPIO6
+static const int      BOUTON_PLUS = 7;       // GPIO7
+static const int      BOUTON_MOINS = 10;     // GPIO10
+static const uint8_t  LUMINOSITE = 4;        // afficheur, de 0 à 7
+
+static const uint8_t  TRAME_MIN = 16;
+static const uint8_t  TRAME_MAX = 8 + 40;
+static const uint8_t  BROADCAST[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+
+portMUX_TYPE verrou = portMUX_INITIALIZER_UNLOCKED;
+volatile uint8_t entree = ENTREE_DEPART;     // lue aussi dans le callback radio
+volatile uint32_t dernierMessage = 0;
+volatile bool dejaRecu = false;
+volatile uint8_t dernierSeq = 0;
+volatile uint8_t atemOk = 0;
+volatile uint8_t etatCam = 0;
+volatile uint8_t sauts = 0;
+uint8_t relais[TRAME_MAX];
+volatile uint8_t relaisLen = 0;
+volatile bool relaisEnAttente = false;
+volatile uint32_t relaisA = 0;
+
+Preferences memoire;
+Adafruit_NeoPixel led(1, PIN_WS2812, NEO_GRB + NEO_KHZ800);
+uint32_t couleurActuelle = 0xFFFFFFFF;
+int etatAvant = -1;
+uint8_t sautsAffiches = 0xFF;
+
+// ---------------------------------------------------------------------------
+//  Afficheur TM1637 (sans bibliothèque)
+// ---------------------------------------------------------------------------
+static const uint8_t CHIFFRES[10] = {0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 0x07, 0x7F, 0x6F};
+
+void tmPause() { delayMicroseconds(5); }
+void tmDebut() {
+  pinMode(TM_DIO, OUTPUT);
+  digitalWrite(TM_CLK, HIGH); digitalWrite(TM_DIO, HIGH); tmPause();
+  digitalWrite(TM_DIO, LOW); tmPause();
+}
+void tmFin() {
+  digitalWrite(TM_CLK, LOW); tmPause();
+  digitalWrite(TM_DIO, LOW); tmPause();
+  digitalWrite(TM_CLK, HIGH); tmPause();
+  digitalWrite(TM_DIO, HIGH); tmPause();
+}
+void tmOctet(uint8_t b) {
+  for (int i = 0; i &lt; 8; i++) {
+    digitalWrite(TM_CLK, LOW); tmPause();
+    digitalWrite(TM_DIO, (b &gt;&gt; i) &amp; 1); tmPause();
+    digitalWrite(TM_CLK, HIGH); tmPause();
+  }
+  digitalWrite(TM_CLK, LOW);                 // accusé de réception du TM1637
+  pinMode(TM_DIO, INPUT_PULLUP); tmPause();
+  digitalWrite(TM_CLK, HIGH); tmPause();
+  digitalWrite(TM_CLK, LOW); tmPause();
+  pinMode(TM_DIO, OUTPUT);
+}
+void tmAfficher(const uint8_t seg[4], bool allume) {
+  tmDebut(); tmOctet(0x40); tmFin();         // écriture, adresse automatique
+  tmDebut(); tmOctet(0xC0);
+  for (int i = 0; i &lt; 4; i++) tmOctet(seg[i]);
+  tmFin();
+  tmDebut(); tmOctet(allume ? (0x88 | LUMINOSITE) : 0x80); tmFin();
+}
+
+int segAffiche = -1;
+void afficherEntree(uint8_t n, bool allume) {
+  int code = n | (allume ? 0x100 : 0);
+  if (code == segAffiche) return;
+  segAffiche = code;
+  uint8_t seg[4] = {0, 0, (uint8_t)(n &gt;= 10 ? CHIFFRES[(n / 10) % 10] : 0), CHIFFRES[n % 10]};
+  tmAfficher(seg, allume);
+}
+
+// ---------------------------------------------------------------------------
+//  Radio
+// ---------------------------------------------------------------------------
+static bool estNouvelle(uint8_t seq, uint32_t maintenant) {
+  if (!dejaRecu || maintenant - dernierMessage &gt; 1000) return true;
+  uint8_t d = seq - dernierSeq;
+  return d &gt; 0 &amp;&amp; d &lt; 128;
+}
+
+static void traiterTrame(const uint8_t *data, int len) {
+  if (len &lt; TRAME_MIN || data[0] != &#x27;T&#x27; || data[1] != &#x27;L&#x27; || data[2] != 2) return;
+  uint32_t maintenant = millis();
+  portENTER_CRITICAL(&amp;verrou);
+  if (!estNouvelle(data[3], maintenant)) { portEXIT_CRITICAL(&amp;verrou); return; }
+  dernierSeq = data[3];
+  dernierMessage = maintenant;
+  dejaRecu = true;
+  atemOk = data[4];
+  uint8_t e = entree;
+  etatCam = (e &lt;= data[5] &amp;&amp; 7 + e &lt; len) ? data[7 + e] : 0;
+  sauts = data[7] + 1;
+  if (RELAIS &amp;&amp; data[6] &gt; 1) {
+    relaisLen = len &lt; TRAME_MAX ? len : TRAME_MAX;
+    memcpy(relais, data, relaisLen);
+    relais[6] = data[6] - 1;
+    relais[7] = data[7] + 1;
+    relaisA = maintenant + 2 + (esp_random() % 13);
+    relaisEnAttente = true;
+  }
+  portEXIT_CRITICAL(&amp;verrou);
+}
+
+#if ESP_ARDUINO_VERSION_MAJOR &gt;= 3
+void surReception(const esp_now_recv_info_t *info, const uint8_t *data, int len) { traiterTrame(data, len); }
+#else
+void surReception(const uint8_t *mac, const uint8_t *data, int len) { traiterTrame(data, len); }
+#endif
+
+void afficherCouleur(uint32_t c) {
+  if (c == couleurActuelle) return;           // la WS2812B garde sa couleur
+  led.setPixelColor(0, c);
+  led.show();
+  couleurActuelle = c;
+}
+
+// ---------------------------------------------------------------------------
+//  Boutons + et − : appui court = un pas, maintenu = défilement ; enregistré 3 s après
+// ---------------------------------------------------------------------------
+struct Bouton { int broche; int sens; bool avant; uint32_t debut, dernierPas; };
+Bouton boutons[2] = {{BOUTON_PLUS, +1, false, 0, 0}, {BOUTON_MOINS, -1, false, 0, 0}};
+uint32_t dernierChangement = 0;
+bool aEnregistrer = false;
+
+void changerEntree(int sens) {
+  int n = entree + sens;
+  if (n &gt; MAX_ENTREES) n = 1;
+  if (n &lt; 1) n = MAX_ENTREES;
+  portENTER_CRITICAL(&amp;verrou);
+  entree = n;
+  etatCam = 0;                               // attendre la prochaine trame pour la nouvelle entrée
+  portEXIT_CRITICAL(&amp;verrou);
+  dernierChangement = millis();
+  aEnregistrer = true;
+  Serial.printf(&quot;Entrée SDI : %d\n&quot;, n);
+}
+
+void gererBoutons() {
+  uint32_t t = millis();
+  bool unAppui = false;
+  for (auto &amp;b : boutons) {
+    bool appui = digitalRead(b.broche) == LOW;
+    if (appui &amp;&amp; !b.avant &amp;&amp; t - b.debut &gt; 30) { b.debut = t; b.dernierPas = t; changerEntree(b.sens); }
+    if (appui &amp;&amp; b.avant &amp;&amp; t - b.debut &gt; 700 &amp;&amp; t - b.dernierPas &gt; 200) { b.dernierPas = t; changerEntree(b.sens); }
+    b.avant = appui;
+    unAppui |= appui;
+  }
+  if (aEnregistrer &amp;&amp; !unAppui &amp;&amp; t - dernierChangement &gt; 3000) {
+    memoire.putUChar(&quot;entree&quot;, entree);
+    aEnregistrer = false;
+    Serial.printf(&quot;Entrée %d enregistrée\n&quot;, entree);
+  }
+}
+
+void setup() {
+  Serial.begin(115200);
+  led.begin();
+  led.setBrightness(LUMINOSITE_LED);
+  pinMode(BOUTON_PLUS, INPUT_PULLUP);
+  pinMode(BOUTON_MOINS, INPUT_PULLUP);
+  pinMode(TM_CLK, OUTPUT);
+  pinMode(TM_DIO, OUTPUT);
+
+  memoire.begin(&quot;tally&quot;, false);
+  uint8_t e = memoire.getUChar(&quot;entree&quot;, ENTREE_DEPART);
+  entree = (e &gt;= 1 &amp;&amp; e &lt;= MAX_ENTREES) ? e : ENTREE_DEPART;
+  afficherEntree(entree, true);
+
+  // Petit test au démarrage : rouge, vert, bleu, 300 ms chacun
+  afficherCouleur(led.Color(255, 0, 0)); delay(300);
+  afficherCouleur(led.Color(0, 255, 0)); delay(300);
+  afficherCouleur(led.Color(0, 0, 255)); delay(300);
+  afficherCouleur(0);
+
+  WiFi.mode(WIFI_STA);
+  WiFi.disconnect();
+  esp_wifi_set_promiscuous(true);
+  esp_wifi_set_channel(CANAL_ESPNOW, WIFI_SECOND_CHAN_NONE);
+  esp_wifi_set_promiscuous(false);
+  if (esp_now_init() != ESP_OK) { Serial.println(&quot;Erreur esp_now_init&quot;); return; }
+  esp_now_register_recv_cb(surReception);
+  esp_now_peer_info_t pair = {};
+  memcpy(pair.peer_addr, BROADCAST, 6);
+  pair.channel = CANAL_ESPNOW;
+  pair.ifidx = WIFI_IF_STA;
+  pair.encrypt = false;
+  if (esp_now_add_peer(&amp;pair) != ESP_OK) Serial.println(&quot;Erreur esp_now_add_peer&quot;);
+  Serial.printf(&quot;Tally prêt sur l&#x27;entrée SDI %d, canal %d, relais %s\n&quot;, entree, CANAL_ESPNOW, RELAIS ? &quot;actif&quot; : &quot;inactif&quot;);
+}
+
+void loop() {
+  uint8_t aEnvoyer[TRAME_MAX];
+  uint8_t nEnvoi = 0;
+  portENTER_CRITICAL(&amp;verrou);
+  if (relaisEnAttente &amp;&amp; (int32_t)(millis() - relaisA) &gt;= 0) {
+    nEnvoi = relaisLen;
+    memcpy(aEnvoyer, relais, nEnvoi);
+    relaisEnAttente = false;
+  }
+  uint32_t dernier = dernierMessage;
+  bool recu = dejaRecu;
+  uint8_t ok = atemOk, e = etatCam, s = sauts;
+  portEXIT_CRITICAL(&amp;verrou);
+  if (nEnvoi) esp_now_send(BROADCAST, aEnvoyer, nEnvoi);
+
+  gererBoutons();
+  uint32_t maintenant = millis();
+  afficherEntree(entree, !aEnregistrer || (maintenant % 400) &lt; 250);
+
+  // 0 : plus de trame, 1 : ATEM perdu, 2 : programme, 3 : preview, 4 : rien
+  int etat = 4;
+  if (!recu || maintenant - dernier &gt; TIMEOUT_MS) etat = 0;
+  else if (ok == 0) etat = 1;
+  else if (e &amp; 0x01) etat = 2;
+  else if (e &amp; 0x02) etat = 3;
+
+  if (etat != etatAvant) {
+    static const char *noms[] = {&quot;plus de trame tally : bleu&quot;, &quot;émetteur sans ATEM : bleu clignotant&quot;,
+                                 &quot;programme : rouge&quot;, &quot;preview : vert&quot;, &quot;hors antenne : éteint&quot;};
+    Serial.printf(&quot;Entrée %d : %s\n&quot;, entree, noms[etat]);
+    etatAvant = etat;
+  }
+  if (etat != 0 &amp;&amp; s != sautsAffiches) {
+    Serial.printf(&quot;Trame reçue en %d saut(s)\n&quot;, s);
+    sautsAffiches = s;
+  }
+
+  const uint32_t BLEU = led.Color(0, 0, 255), ROUGE = led.Color(255, 0, 0), VERT = led.Color(0, 255, 0);
+  switch (etat) {
+    case 0: afficherCouleur(BLEU); break;
+    case 1: afficherCouleur((maintenant % 1000) &lt; 500 ? BLEU : 0); break;
+    case 2: afficherCouleur(ROUGE); break;
+    case 3: afficherCouleur(VERT); break;
+    default: afficherCouleur(0);
+  }
+  delay(1);
+}
+</pre>
+</section>
+</main>
+<script>
+document.querySelectorAll('button[data-cible]').forEach(function (b) {
+  b.addEventListener('click', function () {
+    var pre = document.getElementById(b.dataset.cible);
+    var fini = function (ok) { b.textContent = ok ? 'Copié' : 'Texte sélectionné, faites Cmd+C'; setTimeout(function () { b.textContent = 'Copier'; }, 2500); };
+    var selectionner = function () { var r = document.createRange(); r.selectNodeContents(pre); var s = getSelection(); s.removeAllRanges(); s.addRange(r); fini(false); };
+    try { navigator.clipboard.writeText(pre.textContent).then(function () { fini(true); }, selectionner); } catch (e) { selectionner(); }
+  });
+});
+</script>

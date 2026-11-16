@@ -1,0 +1,184 @@
+<title>Câblage tally Nucleo</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+/* Layout : une colonne de lecture, chaque schéma dans sa propre zone défilable, fiches broche à broche en tableaux. */
+:root {
+  --bg: #f5f7f6; --surface: #ffffff; --fg: #17201d; --muted: #5b6763; --line: #c9d2ce;
+  --pcb: #1f5a45; --pcb-ink: #e9f3ee; --wire-tx: #d9480f; --wire-rx: #1c7ed6; --wire-gnd: #343a40; --wire-5v: #c2255c;
+  --rj45: #6741d9; --radio: #0c8599;
+  --sans: "IBM Plex Sans", system-ui, sans-serif; --mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #111614; --surface: #1a211e; --fg: #e3ebe7; --muted: #9aa8a2; --line: #34403b;
+  --pcb: #2a7a5e; --pcb-ink: #f0f8f4; --wire-tx: #ff7a3d; --wire-rx: #4dabf7; --wire-gnd: #adb5bd; --wire-5v: #f06595;
+  --rj45: #9775fa; --radio: #3bc9db; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #111614; --surface: #1a211e; --fg: #e3ebe7; --muted: #9aa8a2; --line: #34403b;
+  --pcb: #2a7a5e; --pcb-ink: #f0f8f4; --wire-tx: #ff7a3d; --wire-rx: #4dabf7; --wire-gnd: #adb5bd; --wire-5v: #f06595;
+  --rj45: #9775fa; --radio: #3bc9db; color-scheme: dark }
+body { background: var(--bg); color: var(--fg); font: 16px/1.55 var(--sans); }
+main { max-width: 900px; margin: 0 auto; padding-block: 32px 64px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 40px; }
+h1 { font-size: 1.9rem; line-height: 1.2; margin: 0 0 8px; text-wrap: balance; }
+h2 { font-size: 1.3rem; margin: 0 0 12px; text-wrap: balance; }
+p { margin: 0 0 12px; max-width: 65ch; color: var(--fg); }
+.lead { color: var(--muted); }
+section { min-width: 0; }
+.fig { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 12px; }
+.fig svg { display: block; min-width: 640px; width: 100%; height: auto; }
+svg text { font-family: var(--mono); fill: var(--fg); font-size: 12px; }
+svg .pcb { fill: var(--pcb); }
+svg .pcb-t { fill: var(--pcb-ink); font-weight: 600; }
+svg .pin { fill: var(--surface); stroke: var(--pcb-ink); stroke-width: 1.2; }
+svg .muted { fill: var(--muted); }
+svg .box { fill: var(--surface); stroke: var(--fg); stroke-width: 1.5; }
+.tw { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 0.95rem; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; }
+td code, p code, li code { font-family: var(--mono); font-size: 0.9em; }
+.sw { display: inline-block; width: 22px; height: 4px; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
+ol, ul { margin: 0; padding-left: 1.3em; display: grid; gap: 6px; max-width: 70ch; }
+.note { border-left: 3px solid var(--wire-tx); padding: 8px 12px; background: var(--surface); }
+</style>
+
+<main>
+<header>
+  <h1>Câblage du tally ATEM avec le NUCLEO-H753ZI</h1>
+  <p class="lead">L'ATEM est relié en RJ45 au Nucleo, qui lit le tally et l'envoie par liaison série à un ESP32 DevKit V1. Celui-ci le diffuse en ESP-NOW aux 8 tallys, une ESP32 DevKit V1 avec 3 LED par caméra, comme sur l'établi.</p>
+</header>
+
+<section>
+  <h2>Vue d'ensemble</h2>
+  <div class="fig">
+    <svg viewBox="0 0 860 170" role="img" aria-label="Chaîne ATEM, Nucleo, ESP32 émetteur, tallys">
+      <rect class="box" x="10" y="55" width="150" height="60" rx="6"/>
+      <text x="85" y="80" text-anchor="middle" font-weight="600">ATEM 2 M/E</text>
+      <text x="85" y="98" text-anchor="middle" class="muted">192.168.2.20</text>
+      <line x1="160" y1="85" x2="250" y2="85" stroke="var(--rj45)" stroke-width="4"/>
+      <text x="205" y="75" text-anchor="middle" fill="var(--rj45)">RJ45</text>
+      <rect class="pcb" x="250" y="45" width="170" height="80" rx="6"/>
+      <text x="335" y="78" text-anchor="middle" class="pcb-t">NUCLEO-H753ZI</text>
+      <text x="335" y="98" text-anchor="middle" class="pcb-t">192.168.2.51</text>
+      <line x1="420" y1="78" x2="510" y2="78" stroke="var(--wire-tx)" stroke-width="3"/>
+      <line x1="420" y1="92" x2="510" y2="92" stroke="var(--wire-gnd)" stroke-width="3"/>
+      <text x="465" y="68" text-anchor="middle" fill="var(--wire-tx)">série</text>
+      <text x="465" y="112" text-anchor="middle" class="muted">115200</text>
+      <rect class="pcb" x="510" y="45" width="140" height="80" rx="6"/>
+      <text x="580" y="78" text-anchor="middle" class="pcb-t">ESP32 DevKit</text>
+      <text x="580" y="98" text-anchor="middle" class="pcb-t">émetteur</text>
+      <path d="M665 70 q12 15 0 30 M678 60 q20 25 0 50 M691 50 q28 35 0 70" fill="none" stroke="var(--radio)" stroke-width="2.5"/>
+      <text x="740" y="40" text-anchor="middle" fill="var(--radio)">ESP-NOW canal 1</text>
+      <g>
+        <rect class="pcb" x="725" y="55" width="120" height="26" rx="4"/><text x="785" y="73" text-anchor="middle" class="pcb-t">Tally CAM 1</text>
+        <rect class="pcb" x="725" y="89" width="120" height="26" rx="4"/><text x="785" y="107" text-anchor="middle" class="pcb-t">… CAM 8</text>
+      </g>
+      <text x="785" y="140" text-anchor="middle" class="muted">+ antennes relais</text>
+    </svg>
+  </div>
+</section>
+
+<section>
+  <h2>Nucleo vers ESP32 émetteur</h2>
+  <p>Trois fils suffisent. Les deux cartes fonctionnent en 3,3 V, il n'y a donc pas d'adaptateur de niveau à prévoir. La masse commune est obligatoire, sinon l'ESP32 ne reçoit que du bruit.</p>
+  <div class="fig">
+    <svg viewBox="0 0 760 300" role="img" aria-label="Câblage Nucleo D1 vers RX2, D0 vers TX2, GND vers GND, 5V vers VIN">
+      <rect class="pcb" x="20" y="20" width="230" height="260" rx="8"/>
+      <text x="135" y="50" text-anchor="middle" class="pcb-t">NUCLEO-H753ZI</text>
+      <text x="135" y="68" text-anchor="middle" class="pcb-t" font-weight="400">connecteurs CN10 / CN8</text>
+      <rect x="55" y="230" width="50" height="38" rx="3" fill="var(--rj45)"/><text x="80" y="254" text-anchor="middle" class="pcb-t">RJ45</text>
+      <g>
+        <circle class="pin" cx="250" cy="110" r="6"/><text x="236" y="114" text-anchor="end" class="pcb-t">D1 · PB6 (TX)</text>
+        <circle class="pin" cx="250" cy="150" r="6"/><text x="236" y="154" text-anchor="end" class="pcb-t">D0 · PB7 (RX)</text>
+        <circle class="pin" cx="250" cy="190" r="6"/><text x="236" y="194" text-anchor="end" class="pcb-t">GND</text>
+        <circle class="pin" cx="250" cy="230" r="6"/><text x="236" y="234" text-anchor="end" class="pcb-t">5V</text>
+      </g>
+      <rect class="pcb" x="510" y="20" width="230" height="260" rx="8"/>
+      <text x="625" y="50" text-anchor="middle" class="pcb-t">ESP32 DevKit V1</text>
+      <text x="625" y="68" text-anchor="middle" class="pcb-t" font-weight="400">émetteur</text>
+      <g>
+        <circle class="pin" cx="510" cy="110" r="6"/><text x="524" y="114" class="pcb-t">RX2 · GPIO16</text>
+        <circle class="pin" cx="510" cy="150" r="6"/><text x="524" y="154" class="pcb-t">TX2 · GPIO17</text>
+        <circle class="pin" cx="510" cy="190" r="6"/><text x="524" y="194" class="pcb-t">GND</text>
+        <circle class="pin" cx="510" cy="230" r="6"/><text x="524" y="234" class="pcb-t">VIN</text>
+      </g>
+      <line x1="256" y1="110" x2="504" y2="110" stroke="var(--wire-tx)" stroke-width="3.5"/>
+      <line x1="256" y1="150" x2="504" y2="150" stroke="var(--wire-rx)" stroke-width="3.5"/>
+      <line x1="256" y1="190" x2="504" y2="190" stroke="var(--wire-gnd)" stroke-width="3.5"/>
+      <line x1="256" y1="230" x2="504" y2="230" stroke="var(--wire-5v)" stroke-width="3.5" stroke-dasharray="8 6"/>
+      <text x="380" y="102" text-anchor="middle" fill="var(--wire-tx)">tally →</text>
+      <text x="380" y="142" text-anchor="middle" fill="var(--wire-rx)">← (réservé)</text>
+      <text x="380" y="222" text-anchor="middle" fill="var(--wire-5v)">facultatif</text>
+    </svg>
+  </div>
+  <div class="tw"><table>
+    <thead><tr><th>Fil</th><th>Nucleo</th><th>ESP32 DevKit V1</th><th>Rôle</th></tr></thead>
+    <tbody>
+      <tr><td><span class="sw" style="background:var(--wire-tx)"></span>1</td><td><code>D1</code> (PB6, TX), CN10</td><td><code>RX2</code> (GPIO16)</td><td>Le tally, 10 fois par seconde</td></tr>
+      <tr><td><span class="sw" style="background:var(--wire-rx)"></span>2</td><td><code>D0</code> (PB7, RX), CN10</td><td><code>TX2</code> (GPIO17)</td><td>Inutilisé pour l'instant, prévu pour un retour</td></tr>
+      <tr><td><span class="sw" style="background:var(--wire-gnd)"></span>3</td><td><code>GND</code></td><td><code>GND</code></td><td>Masse commune, obligatoire</td></tr>
+      <tr><td><span class="sw" style="background:var(--wire-5v)"></span>4</td><td><code>5V</code>, CN8</td><td><code>VIN</code></td><td>Facultatif : alimente l'ESP32 depuis le Nucleo. Sinon, branchez l'ESP32 sur son propre USB.</td></tr>
+    </tbody>
+  </table></div>
+  <p class="note">Ne reliez jamais le 5V du Nucleo au VIN si l'ESP32 est aussi branché sur l'USB de l'ordinateur pendant le téléversement : débranchez ce fil le temps de programmer l'ESP32.</p>
+</section>
+
+<section>
+  <h2>Chaque tally (caméras 1 à 8)</h2>
+  <p>Même câblage que les lampes de l'établi. Une seule LED est allumée à la fois, par priorité bleu, puis rouge, puis vert.</p>
+  <div class="fig">
+    <svg viewBox="0 0 640 230" role="img" aria-label="ESP32 D18, D19, D21 vers résistances et LED rouge, verte, bleue vers GND">
+      <rect class="pcb" x="20" y="20" width="200" height="190" rx="8"/>
+      <text x="120" y="50" text-anchor="middle" class="pcb-t">ESP32 DevKit V1</text>
+      <text x="120" y="68" text-anchor="middle" class="pcb-t" font-weight="400">tally_camN</text>
+      <circle class="pin" cx="220" cy="95" r="6"/><text x="206" y="99" text-anchor="end" class="pcb-t">D18</text>
+      <circle class="pin" cx="220" cy="135" r="6"/><text x="206" y="139" text-anchor="end" class="pcb-t">D19</text>
+      <circle class="pin" cx="220" cy="175" r="6"/><text x="206" y="179" text-anchor="end" class="pcb-t">D21</text>
+      <circle class="pin" cx="120" cy="210" r="6"/><text x="120" y="198" text-anchor="middle" class="pcb-t">GND</text>
+      <g stroke="var(--fg)" stroke-width="2" fill="none">
+        <path d="M226 95 H300"/><path d="M226 135 H300"/><path d="M226 175 H300"/>
+        <rect x="300" y="87" width="60" height="16" fill="var(--surface)"/><rect x="300" y="127" width="60" height="16" fill="var(--surface)"/><rect x="300" y="167" width="60" height="16" fill="var(--surface)"/>
+        <path d="M360 95 H420"/><path d="M360 135 H420"/><path d="M360 175 H420"/>
+        <path d="M444 95 H560 V222 H120 V216"/><path d="M444 135 H560"/><path d="M444 175 H560"/>
+      </g>
+      <text x="330" y="80" text-anchor="middle">120 Ω</text><text x="330" y="120" text-anchor="middle">47 Ω</text><text x="330" y="160" text-anchor="middle">33 Ω</text>
+      <path d="M420 85 L444 95 L420 105 Z" fill="#e03131"/><line x1="444" y1="85" x2="444" y2="105" stroke="var(--fg)" stroke-width="2"/>
+      <path d="M420 125 L444 135 L420 145 Z" fill="#2f9e44"/><line x1="444" y1="125" x2="444" y2="145" stroke="var(--fg)" stroke-width="2"/>
+      <path d="M420 165 L444 175 L420 185 Z" fill="#1c7ed6"/><line x1="444" y1="165" x2="444" y2="185" stroke="var(--fg)" stroke-width="2"/>
+      <text x="580" y="99">rouge · PGM</text><text x="580" y="139">verte · PVW</text><text x="580" y="179">bleue · liaison</text>
+    </svg>
+  </div>
+  <p>La patte longue (anode) de chaque LED va du côté de la résistance, la patte courte (cathode) vers GND.</p>
+  <div class="tw"><table>
+    <thead><tr><th>LED</th><th>Signification</th></tr></thead>
+    <tbody>
+      <tr><td>Bleue fixe</td><td>Plus aucune trame reçue depuis 2 s</td></tr>
+      <tr><td>Bleue clignotante</td><td>L'émetteur répond, mais le Nucleo n'a plus l'ATEM, ou l'ESP32 n'a plus le Nucleo</td></tr>
+      <tr><td>Rouge</td><td>Caméra au programme</td></tr>
+      <tr><td>Verte</td><td>Caméra en preview</td></tr>
+      <tr><td>Tout éteint</td><td>Caméra hors antenne</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <h2>Quel code sur quelle carte</h2>
+  <div class="tw"><table>
+    <thead><tr><th>Carte</th><th>Fichier</th><th>Outil</th></tr></thead>
+    <tbody>
+      <tr><td>NUCLEO-H753ZI</td><td><code>nucleo_cubeide/atem_client.c</code> et <code>.h</code></td><td>STM32CubeIDE (pas Arduino IDE : son Ethernet ne gère pas le H7). Suivre <code>GUIDE_CUBEIDE.md</code>.</td></tr>
+      <tr><td>ESP32 émetteur</td><td><code>emetteur_esp32_uart.ino</code></td><td>ESP32 Dev Module</td></tr>
+      <tr><td>Tally caméra N</td><td><code>tally_camN.ino</code> (N de 1 à 8)</td><td>ESP32 Dev Module</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <h2>Vérifier dans l'ordre</h2>
+  <ol>
+    <li>Nucleo seul, RJ45 branché à l'ATEM : son moniteur série (USB du ST-Link) affiche « Connecté à l'ATEM » puis les lignes <code>Tally ATEM : 1:PGM 2:PVW …</code>. LED verte LD1 allumée.</li>
+    <li>ESP32 émetteur relié au Nucleo : son moniteur série affiche « ATEM OK » et les mêmes lignes de tally. Sa LED bleue D2 s'éteint. Si vous voyez « Pas de données du Nucleo », vérifiez le fil D1 → RX2 et la masse.</li>
+    <li>Tallys : au démarrage, rouge, vert puis bleu s'allument chacun 300 ms pour tester le câblage, puis la LED suit l'ATEM.</li>
+  </ol>
+</section>
+</main>

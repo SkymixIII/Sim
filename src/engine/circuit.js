@@ -72,7 +72,7 @@ export function buildNetlist(circuit) {
   const elements = [];
   for (const c of circuit.components) {
     const def = REGISTRY[c.type];
-    if (def.isGround) continue;
+    if (def.isGround || !def.pins.length) continue; // composant sans broche (ex. appareil réseau)
     const nodes = pins.get(c.id).map((p) => nodeOf(key(p.x, p.y)));
     elements.push({ def: c.damaged ? damagedDef(def) : def, inst: c, nodes });
   }

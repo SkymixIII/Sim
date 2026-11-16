@@ -4,8 +4,9 @@ import { ground, resistor, potentiometer, toggleSwitch, pushButton } from "./pas
 import { dcSupply, battery, currentSource } from "./sources.js";
 import { diode, led } from "./semiconductors.js";
 import { esp32 } from "./esp32.js";
+import { atem } from "./atem.js";
 
-export const COMPONENTS = [ground, dcSupply, battery, currentSource, resistor, potentiometer, toggleSwitch, pushButton, diode, led, esp32];
+export const COMPONENTS = [ground, dcSupply, battery, currentSource, resistor, potentiometer, toggleSwitch, pushButton, diode, led, esp32, atem];
 
 export const REGISTRY = Object.fromEntries(COMPONENTS.map((c) => [c.type, c]));
 
