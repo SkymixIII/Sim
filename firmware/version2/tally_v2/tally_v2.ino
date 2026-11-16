@@ -1,16 +1,14 @@
 // ============================================================================
-//  VERSION 2 · Tally  ·  ESP32-C3 + LED WS2812B + afficheur 7 segments 2 chiffres
+//  VERSION 2 · Tally  ·  ESP32-C3 Super Mini + LED WS2812B + afficheur TM1637
 // ----------------------------------------------------------------------------
 //  Le même code sur tous les tallys : l'entrée SDI lue se règle avec les
-//  boutons + et −, et s'affiche sur l'afficheur 7 segments double (« 7 », « 12 »).
+//  boutons + et −, et s'affiche sur l'afficheur 7 segments (« 7 », « 12 »),
+//  sur les deux chiffres de droite du module 4 chiffres.
 //
 //  Câblage (ESP32-C3 Super Mini) :
 //    GPIO4  -> 330 Ω -> DIN de la WS2812B      5V  -> VDD,  GND -> GND
-//    Deux chiffres 7 segments séparés (5161AS, cathode commune), un 74HC595 chacun :
-//    GPIO5  -> DS (broche 14) du 1er 74HC595   GPIO6 -> SH_CP (11) des deux 74HC595
-//    GPIO3  -> ST_CP (12) des deux 74HC595     Q7' (9) du 1er -> DS (14) du 2e
-//    1er 74HC595 : unités, 2e : dizaines. Sorties Q0..Q6 -> 220 Ω -> segments a..g
-//    VCC (16) et MR (10) -> 3V3, GND (8) et OE (13) -> GND, cathodes communes -> GND
+//    GPIO5  -> CLK du TM1637                   GPIO6 -> DIO du TM1637
+//    3V3    -> VCC du TM1637                   GND -> GND du TM1637
 //    GPIO7  -> bouton « + » -> GND             GPIO10 -> bouton « − » -> GND
 //
 //  Boutons :
@@ -43,12 +41,11 @@ static const uint8_t  CANAL_ESPNOW = 1;
 static const uint32_t TIMEOUT_MS = 2000;
 static const int      PIN_WS2812 = 4;        // GPIO4
 static const uint8_t  LUMINOSITE_LED = 160;  // 0 à 255
-static const int      SR_DATA = 5;           // GPIO5 -> DS du 1er 74HC595
-static const int      SR_HORLOGE = 6;        // GPIO6 -> SH_CP des deux 74HC595
-static const int      SR_VERROU = 3;         // GPIO3 -> ST_CP des deux 74HC595
-static const bool     ANODE_COMMUNE = false; // true si l'afficheur est à anode commune
+static const int      TM_CLK = 5;            // GPIO5
+static const int      TM_DIO = 6;            // GPIO6
 static const int      BOUTON_PLUS = 7;       // GPIO7
 static const int      BOUTON_MOINS = 10;     // GPIO10
+static const uint8_t  LUMINOSITE = 4;        // afficheur, de 0 à 7
 
 static const uint8_t  TRAME_MIN = 16;
 static const uint8_t  TRAME_MAX = 8 + 40;
@@ -74,18 +71,40 @@ int etatAvant = -1;
 uint8_t sautsAffiches = 0xFF;
 
 // ---------------------------------------------------------------------------
-//  Afficheur 7 segments 2 chiffres par deux 74HC595 (sans bibliothèque)
+//  Afficheur TM1637 (sans bibliothèque)
 // ---------------------------------------------------------------------------
-//  Bits : Q0 = a, Q1 = b, Q2 = c, Q3 = d, Q4 = e, Q5 = f, Q6 = g, Q7 = point.
 static const uint8_t CHIFFRES[10] = {0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 0x07, 0x7F, 0x6F};
 
-void envoyerOctet(uint8_t b) {
-  if (ANODE_COMMUNE) b = ~b;
-  for (int i = 7; i >= 0; i--) {             // Q7 d'abord, Q0 en dernier
-    digitalWrite(SR_DATA, (b >> i) & 1);
-    digitalWrite(SR_HORLOGE, HIGH);
-    digitalWrite(SR_HORLOGE, LOW);
+void tmPause() { delayMicroseconds(5); }
+void tmDebut() {
+  pinMode(TM_DIO, OUTPUT);
+  digitalWrite(TM_CLK, HIGH); digitalWrite(TM_DIO, HIGH); tmPause();
+  digitalWrite(TM_DIO, LOW); tmPause();
+}
+void tmFin() {
+  digitalWrite(TM_CLK, LOW); tmPause();
+  digitalWrite(TM_DIO, LOW); tmPause();
+  digitalWrite(TM_CLK, HIGH); tmPause();
+  digitalWrite(TM_DIO, HIGH); tmPause();
+}
+void tmOctet(uint8_t b) {
+  for (int i = 0; i < 8; i++) {
+    digitalWrite(TM_CLK, LOW); tmPause();
+    digitalWrite(TM_DIO, (b >> i) & 1); tmPause();
+    digitalWrite(TM_CLK, HIGH); tmPause();
   }
+  digitalWrite(TM_CLK, LOW);                 // accusé de réception du TM1637
+  pinMode(TM_DIO, INPUT_PULLUP); tmPause();
+  digitalWrite(TM_CLK, HIGH); tmPause();
+  digitalWrite(TM_CLK, LOW); tmPause();
+  pinMode(TM_DIO, OUTPUT);
+}
+void tmAfficher(const uint8_t seg[4], bool allume) {
+  tmDebut(); tmOctet(0x40); tmFin();         // écriture, adresse automatique
+  tmDebut(); tmOctet(0xC0);
+  for (int i = 0; i < 4; i++) tmOctet(seg[i]);
+  tmFin();
+  tmDebut(); tmOctet(allume ? (0x88 | LUMINOSITE) : 0x80); tmFin();
 }
 
 int segAffiche = -1;
@@ -93,12 +112,8 @@ void afficherEntree(uint8_t n, bool allume) {
   int code = n | (allume ? 0x100 : 0);
   if (code == segAffiche) return;
   segAffiche = code;
-  uint8_t dizaines = (allume && n >= 10) ? CHIFFRES[(n / 10) % 10] : 0;
-  uint8_t unites = allume ? CHIFFRES[n % 10] : 0;
-  digitalWrite(SR_VERROU, LOW);
-  envoyerOctet(dizaines);                    // part au bout de la chaîne : 2e 74HC595
-  envoyerOctet(unites);                      // reste dans le 1er 74HC595
-  digitalWrite(SR_VERROU, HIGH);             // les deux chiffres changent en même temps
+  uint8_t seg[4] = {0, 0, (uint8_t)(n >= 10 ? CHIFFRES[(n / 10) % 10] : 0), CHIFFRES[n % 10]};
+  tmAfficher(seg, allume);
 }
 
 // ---------------------------------------------------------------------------
@@ -190,9 +205,8 @@ void setup() {
   led.setBrightness(LUMINOSITE_LED);
   pinMode(BOUTON_PLUS, INPUT_PULLUP);
   pinMode(BOUTON_MOINS, INPUT_PULLUP);
-  pinMode(SR_DATA, OUTPUT);
-  pinMode(SR_HORLOGE, OUTPUT);
-  pinMode(SR_VERROU, OUTPUT);
+  pinMode(TM_CLK, OUTPUT);
+  pinMode(TM_DIO, OUTPUT);
 
   memoire.begin("tally", false);
   uint8_t e = memoire.getUChar("entree", ENTREE_DEPART);

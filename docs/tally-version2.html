@@ -52,7 +52,7 @@ svg .dot { fill: var(--fg); }
 <main>
 <header>
   <h1>Tally version 2</h1>
-  <p class="lead">La version 1, avec des réglages sur les boîtiers. L'émetteur WT32-ETH01 a 4 interrupteurs pour choisir les M/E suivies. Chaque tally ESP32-C3 a un afficheur 7 segments à 2 chiffres qui montre l'entrée SDI lue (de 1 à 20) et deux boutons + et − pour la changer, sans reprogrammer. Tous les tallys ont le même code. Émetteur et tallys sont sur accus ou piles, avec un TPS63020.</p>
+  <p class="lead">La version 1, avec des réglages sur les boîtiers. L'émetteur WT32-ETH01 a 4 interrupteurs pour choisir les M/E suivies. Chaque tally ESP32-C3 a un afficheur 7 segments qui montre l'entrée SDI lue (« 7 », sur les deux chiffres de droite) et deux boutons + et − pour la changer, sans reprogrammer. Tous les tallys ont le même code. Émetteur et tallys sont sur accus ou piles, avec un TPS63020.</p>
 </header>
 
 <section>
@@ -72,9 +72,9 @@ svg .dot { fill: var(--fg); }
       <path d="M555 80 q12 15 0 30 M568 70 q20 25 0 50 M581 60 q28 35 0 70" fill="none" stroke="var(--radio)" stroke-width="2.5"/>
       <text x="720" y="22" text-anchor="middle" style="fill:var(--radio)">ESP-NOW canal 1, maillé</text>
       <g>
-        <rect class="box" x="630" y="36" width="100" height="40" rx="8"/><circle cx="650" cy="56" r="8" fill="#e03131"/><text x="692" y="60" text-anchor="middle" font-size="11">« In 1 »</text>
-        <rect class="box" x="745" y="36" width="100" height="40" rx="8"/><circle cx="765" cy="56" r="8" fill="#2f9e44"/><text x="807" y="60" text-anchor="middle" font-size="11">« In 2 »</text>
-        <rect class="box" x="630" y="86" width="100" height="40" rx="8"/><circle cx="650" cy="106" r="8" style="fill:var(--line)"/><text x="692" y="110" text-anchor="middle" font-size="11">« In 3 »</text>
+        <rect class="box" x="630" y="36" width="100" height="40" rx="8"/><circle cx="650" cy="56" r="8" fill="#e03131"/><text x="692" y="60" text-anchor="middle" font-size="11">« 1 »</text>
+        <rect class="box" x="745" y="36" width="100" height="40" rx="8"/><circle cx="765" cy="56" r="8" fill="#2f9e44"/><text x="807" y="60" text-anchor="middle" font-size="11">« 2 »</text>
+        <rect class="box" x="630" y="86" width="100" height="40" rx="8"/><circle cx="650" cy="106" r="8" style="fill:var(--line)"/><text x="692" y="110" text-anchor="middle" font-size="11">« 3 »</text>
         <rect class="box" x="745" y="86" width="100" height="40" rx="8"/><circle cx="765" cy="106" r="8" style="fill:var(--line)"/><text x="807" y="110" text-anchor="middle" font-size="11">« 12 »</text>
       </g>
       <text x="737" y="150" text-anchor="middle" class="muted">ESP32-C3 + WS2812B</text>
@@ -202,7 +202,7 @@ svg .dot { fill: var(--fg); }
 <section>
   <h2>Boîtier tally : câblage</h2>
   <div class="fig">
-    <svg viewBox="0 0 900 470" role="img" aria-label="Piles, interrupteur, TPS63020, diode, ESP32-C3, LED WS2812B, afficheur 2 chiffres et deux boutons">
+    <svg viewBox="0 0 900 470" role="img" aria-label="Piles, interrupteur, TPS63020, diode, ESP32-C3, LED WS2812B, afficheur TM1637 et deux boutons">
       <rect class="box" x="10" y="10" width="880" height="450" rx="12" stroke-dasharray="6 5"/>
       <text x="24" y="32" class="muted">boîtier tally</text>
       <rect x="30" y="70" width="110" height="150" rx="6" style="fill:var(--surface)" stroke="var(--fg)" stroke-width="2"/>
@@ -249,24 +249,20 @@ svg .dot { fill: var(--fg); }
       <text x="815" y="114" text-anchor="middle" font-weight="600">WS2812B</text>
       <text x="766" y="129" font-size="10">DIN</text><text x="766" y="169" font-size="10">VDD</text><text x="766" y="209" font-size="10">GND</text>
       <!-- afficheur -->
-      <circle class="pin" cx="640" cy="255" r="6"/><text x="626" y="259" text-anchor="end" class="pcb-t">GPIO5</text>
-      <path d="M646 255 H700" stroke="var(--wire-a)" stroke-width="3" fill="none"/>
-      <circle class="pin" cx="640" cy="275" r="6"/><text x="626" y="279" text-anchor="end" class="pcb-t">GPIO6</text>
-      <path d="M646 275 H700" stroke="var(--wire-b)" stroke-width="3" fill="none"/>
-      <circle class="pin" cx="640" cy="295" r="6"/><text x="626" y="299" text-anchor="end" class="pcb-t">GPIO3</text>
-      <path d="M646 295 H700" stroke="var(--radio)" stroke-width="3" fill="none"/>
-      <circle class="pin" cx="640" cy="315" r="6"/><text x="626" y="319" text-anchor="end" class="pcb-t">3V3</text>
-      <path d="M646 315 H700" stroke="var(--wire-3v3)" stroke-width="3" fill="none"/>
+      <circle class="pin" cx="640" cy="260" r="6"/><text x="626" y="264" text-anchor="end" class="pcb-t">GPIO5</text>
+      <circle class="pin" cx="640" cy="285" r="6"/><text x="626" y="289" text-anchor="end" class="pcb-t">GPIO6</text>
+      <circle class="pin" cx="640" cy="310" r="6"/><text x="626" y="314" text-anchor="end" class="pcb-t">3V3</text>
       <circle class="pin" cx="640" cy="335" r="6"/><text x="626" y="339" text-anchor="end" class="pcb-t">GND</text>
-      <path d="M646 335 H700" stroke="var(--wire-gnd)" stroke-width="3" fill="none"/>
-      <rect x="700" y="240" width="180" height="112" rx="6" style="fill:var(--pcb)"/>
-      <text x="706" y="259" class="pcb-t" font-size="9">DS</text><text x="706" y="279" class="pcb-t" font-size="9">SH</text><text x="706" y="299" class="pcb-t" font-size="9">ST</text><text x="706" y="319" class="pcb-t" font-size="9">3V3</text><text x="706" y="339" class="pcb-t" font-size="9">GND</text>
-      <rect x="732" y="250" width="34" height="40" rx="2" fill="#111"/><text x="749" y="274" text-anchor="middle" font-size="9" style="fill:#ddd">595</text>
-      <rect x="732" y="300" width="34" height="40" rx="2" fill="#111"/><text x="749" y="324" text-anchor="middle" font-size="9" style="fill:#ddd">595</text>
-      <rect x="776" y="252" width="44" height="64" rx="3" fill="#111"/><rect x="826" y="252" width="44" height="64" rx="3" fill="#111"/>
-      <text x="798" y="301" text-anchor="middle" font-size="46" font-weight="600" style="fill:var(--seg)">1</text>
-      <text x="848" y="301" text-anchor="middle" font-size="46" font-weight="600" style="fill:var(--seg)">2</text>
-      <text x="823" y="336" text-anchor="middle" class="pcb-t" font-size="9">+ 14 × 220 Ω</text>
+      <g stroke-width="3" fill="none">
+        <path d="M646 260 H760" stroke="var(--wire-a)"/><path d="M646 285 H760" stroke="var(--wire-b)"/>
+        <path d="M646 310 H760" stroke="var(--wire-3v3)"/><path d="M646 335 H760" stroke="var(--wire-gnd)"/>
+      </g>
+      <rect x="760" y="245" width="110" height="105" rx="6" style="fill:var(--pcb)"/>
+      <rect x="768" y="252" width="94" height="34" rx="3" fill="#111"/>
+      <text x="815" y="276" text-anchor="middle" font-size="19" font-weight="600" style="fill:var(--seg)">&#160;&#160;&#160;7</text>
+      <text x="815" y="300" text-anchor="middle" class="pcb-t" font-size="10">TM1637</text>
+      <text x="766" y="264" class="pcb-t" font-size="9"></text>
+      <text x="815" y="340" text-anchor="middle" class="pcb-t" font-size="9">CLK DIO VCC GND</text>
       <!-- boutons -->
       <circle class="pin" cx="640" cy="375" r="6"/><text x="626" y="379" text-anchor="end" class="pcb-t">GPIO7</text>
       <circle class="pin" cx="640" cy="405" r="6"/><text x="626" y="409" text-anchor="end" class="pcb-t">GPIO10</text>
@@ -289,11 +285,9 @@ svg .dot { fill: var(--fg); }
       <tr><td><span class="sw" style="background:var(--wire-3v3)"></span>Piles</td><td colspan="2"><code>+</code> du support → interrupteur SW1 → <code>VIN</code> du TPS63020. <code>−</code> du support → <code>GND</code> du TPS63020</td></tr>
       <tr><td><span class="sw" style="background:var(--wire-3v3)"></span>Sortie 5 V</td><td colspan="2"><code>VOUT</code> du TPS63020 → diode 1N5817 (bague côté ESP32) → <code>5V</code> de l'ESP32-C3. <code>GND</code> du TPS63020 → <code>GND</code> de l'ESP32-C3</td></tr>
       <tr><td><span class="sw" style="background:var(--wire-gnd)"></span>Masse</td><td><code>GND</code></td><td><code>GND</code></td></tr>
-      <tr><td><span class="sw" style="background:var(--wire-a)"></span>Afficheur DS</td><td><code>GPIO5</code></td><td><code>DS</code> (broche 14) du 1er 74HC595, celui des unités</td></tr>
-      <tr><td><span class="sw" style="background:var(--wire-b)"></span>Afficheur SH_CP</td><td><code>GPIO6</code></td><td><code>SH_CP</code> (broche 11) des deux 74HC595</td></tr>
-      <tr><td><span class="sw" style="background:var(--radio)"></span>Afficheur ST_CP</td><td><code>GPIO3</code></td><td><code>ST_CP</code> (broche 12) des deux 74HC595</td></tr>
-      <tr><td><span class="sw" style="background:var(--wire-3v3)"></span>Afficheur 3V3</td><td><code>3V3</code></td><td><code>VCC</code> (16) et <code>MR</code> (10) des deux 74HC595. Pas le 5 V : il renverrait du 5 V sur les broches de l'ESP32-C3</td></tr>
-      <tr><td><span class="sw" style="background:var(--wire-gnd)"></span>Afficheur GND</td><td><code>GND</code></td><td><code>GND</code> (8) et <code>OE</code> (13) des deux 74HC595, et les cathodes communes des deux chiffres</td></tr>
+      <tr><td><span class="sw" style="background:var(--wire-a)"></span>Afficheur CLK</td><td><code>GPIO5</code></td><td><code>CLK</code> du TM1637</td></tr>
+      <tr><td><span class="sw" style="background:var(--wire-b)"></span>Afficheur DIO</td><td><code>GPIO6</code></td><td><code>DIO</code> du TM1637</td></tr>
+      <tr><td><span class="sw" style="background:var(--wire-3v3)"></span>Afficheur VCC</td><td><code>3V3</code></td><td><code>VCC</code> du TM1637 (pas le 5 V : il renverrait du 5 V sur les broches de l'ESP32-C3)</td></tr>
       <tr><td><span class="sw" style="background:var(--wire-a)"></span>Bouton +</td><td><code>GPIO7</code></td><td>Bouton poussoir, l'autre patte à <code>GND</code></td></tr>
       <tr><td><span class="sw" style="background:var(--wire-b)"></span>Bouton −</td><td><code>GPIO10</code></td><td>Bouton poussoir, l'autre patte à <code>GND</code></td></tr>
       <tr><td>Condensateur</td><td colspan="2">100 µF entre <code>VDD</code> et <code>GND</code>, au plus près de la LED (le moins vers GND)</td></tr>
@@ -390,7 +384,7 @@ svg .dot { fill: var(--fg); }
       <text x="876" y="432" class="net" text-anchor="end"></text>
 </svg>
   </div>
-  <p>Tally sur piles. L'entrée EN du TPS63020 est reliée à VIN (toujours en marche) : c'est SW1 qui coupe les piles. La carte afficheur (détail plus bas) est alimentée en 3,3 V par l'ESP32-C3. Les boutons SW2 et SW3 relient GPIO7 et GPIO10 à GND (résistances de tirage internes).</p>
+  <p>Tally sur piles. L'entrée EN du TPS63020 est reliée à VIN (toujours en marche) : c'est SW1 qui coupe les piles. L'afficheur U3 est alimenté en 3,3 V par l'ESP32-C3. Les boutons SW2 et SW3 relient GPIO7 et GPIO10 à GND (résistances de tirage internes).</p>
   <div class="fig">
     <svg viewBox="0 0 900 420" role="img" aria-label="Schéma électrique du tally sur piles">
       <rect class="ic" x="20" y="90" width="70" height="110"/>
@@ -418,7 +412,7 @@ svg .dot { fill: var(--fg); }
       <text x="535" y="52" text-anchor="middle" font-weight="600">U1 ESP32-C3 Super Mini</text>
       <text x="470" y="144">5V</text><text x="470" y="184">GND</text>
       <text x="600" y="104" text-anchor="end">GPIO4</text><text x="600" y="144" text-anchor="end">5V</text><text x="600" y="184" text-anchor="end">GND</text>
-      <text x="535" y="384" text-anchor="middle" class="net">USB-C : téléversement</text>
+      <text x="535" y="380" text-anchor="middle" class="net">USB-C : téléversement</text>
       <path d="M610 100 H660" class="trait"/>
       <rect x="660" y="94" width="40" height="12" class="trait" style="fill:var(--surface)"/><text x="680" y="88" text-anchor="middle">R1 330 Ω</text>
       <path d="M700 100 H770" class="trait"/>
@@ -430,134 +424,23 @@ svg .dot { fill: var(--fg); }
       <rect class="ic" x="770" y="80" width="110" height="120"/>
       <text x="825" y="72" text-anchor="middle" font-weight="600">LED1 WS2812B</text>
       <text x="780" y="104">DIN</text><text x="780" y="144">VDD</text><text x="780" y="184">GND</text>
-      <text x="870" y="124" text-anchor="end" class="net">DOUT non relié</text>
+      <text x="825" y="194" text-anchor="middle" class="net">DOUT non relié</text>
       
-      <text x="600" y="244" text-anchor="end">GPIO5</text><text x="600" y="264" text-anchor="end">GPIO6</text><text x="600" y="284" text-anchor="end">GPIO3</text><text x="600" y="304" text-anchor="end">3V3</text>
-      <text x="600" y="338" text-anchor="end">GPIO7</text><text x="600" y="364" text-anchor="end">GPIO10</text>
-      <g class="trait"><path d="M610 240 H770"/><path d="M610 260 H770"/><path d="M610 280 H770"/><path d="M610 300 H770"/><path d="M720 180 V320 H770"/></g>
-      <rect class="ic" x="770" y="225" width="110" height="110"/>
-      <text x="825" y="217" text-anchor="middle" font-weight="600">Carte afficheur</text>
-      <text x="780" y="244">DS</text><text x="780" y="264">SH_CP</text><text x="780" y="284">ST_CP</text><text x="780" y="304">3V3</text><text x="780" y="324">GND</text>
-      <text x="870" y="282" text-anchor="end" class="net">U3 U4</text><text x="870" y="296" text-anchor="end" class="net">DS1 DS2</text>
+          <text x="600" y="244" text-anchor="end">GPIO5</text><text x="600" y="269" text-anchor="end">GPIO6</text><text x="600" y="294" text-anchor="end">3V3</text>
+      <text x="600" y="334" text-anchor="end">GPIO7</text><text x="600" y="364" text-anchor="end">GPIO10</text>
+      <g class="trait"><path d="M610 240 H770"/><path d="M610 265 H770"/><path d="M610 290 H770"/><path d="M720 180 V315 H770"/></g>
+      <circle cx="720" cy="180" r="3" class="dot"/>
+      <rect class="ic" x="770" y="225" width="110" height="105"/>
+      <text x="825" y="217" text-anchor="middle" font-weight="600">U3 TM1637</text>
+      <text x="780" y="244">CLK</text><text x="780" y="269">DIO</text><text x="780" y="294">VCC</text><text x="780" y="319">GND</text>
       <g class="trait">
-        <path d="M610 334 H650"/><circle cx="652" cy="334" r="2.5" class="dot"/><path d="M654 326 H676 M665 326 V319"/><circle cx="678" cy="334" r="2.5" class="dot"/><path d="M680 334 H700"/>
+        <path d="M610 330 H650"/><circle cx="652" cy="330" r="2.5" class="dot"/><path d="M654 322 H676 M665 322 V315"/><circle cx="678" cy="330" r="2.5" class="dot"/><path d="M680 330 H700"/>
         <path d="M610 360 H650"/><circle cx="652" cy="360" r="2.5" class="dot"/><path d="M654 352 H676 M665 352 V345"/><circle cx="678" cy="360" r="2.5" class="dot"/><path d="M680 360 H700"/>
-        <path d="M700 334 V390 M690 390 H710 M694 395 H706 M698 400 H702"/>
+        <path d="M700 330 V385 M690 385 H710 M694 390 H706 M698 395 H702"/>
       </g>
-      <text x="636" y="324" text-anchor="middle" font-size="10">SW2 +</text><text x="636" y="377" text-anchor="middle" font-size="10">SW3 −</text>
+      <text x="665" y="310" text-anchor="middle" font-size="10">SW2 +</text><text x="665" y="378" text-anchor="middle" font-size="10">SW3 −</text>
 </svg>
   </div>
-  <h3 style="margin:8px 0 0;font-size:1.05rem">Carte afficheur, en détail</h3>
-  <p>Deux 74HC595 en chaîne tiennent chacun un chiffre allumé en permanence, sans balayage, donc sans scintillement. U3 reçoit les données de l'ESP32-C3 et pilote les unités. Sa sortie Q7' passe les données à U4, qui pilote les dizaines. Les sorties Q0 à Q6 attaquent les segments a à g par une résistance de 220 Ω chacune. Le point (Q7) n'est pas relié.</p>
-  <div class="fig">
-    <svg viewBox="0 0 900 520" role="img" aria-label="Schéma de la carte afficheur : deux 74HC595 en chaîne, 14 résistances, deux chiffres 7 segments">
-      <rect class="ic" x="200" y="40" width="130" height="200"/>
-      <text x="265" y="32" text-anchor="middle" font-weight="600">U3 74HC595</text>
-      <text x="265" y="252" text-anchor="middle" class="net">unités, reçoit GPIO5</text>
-      <text x="206" y="68" font-size="11">14 DS</text>
-      <path d="M150 64 H200" class="trait"/><text x="145" y="68" text-anchor="end" class="net">GPIO5</text>
-      <text x="206" y="90" font-size="11">11 SH_CP</text>
-      <path d="M150 86 H200" class="trait"/><text x="145" y="90" text-anchor="end" class="net">GPIO6</text>
-      <text x="206" y="112" font-size="11">12 ST_CP</text>
-      <path d="M150 108 H200" class="trait"/><text x="145" y="112" text-anchor="end" class="net">GPIO3</text>
-      <text x="206" y="134" font-size="11">10 MR</text>
-      <path d="M150 130 H200" class="trait"/><text x="145" y="134" text-anchor="end" class="net">3V3</text>
-      <text x="206" y="156" font-size="11">13 OE</text>
-      <path d="M150 152 H200" class="trait"/><text x="145" y="156" text-anchor="end" class="net">GND</text>
-      <text x="206" y="178" font-size="11">16 VCC</text>
-      <path d="M150 174 H200" class="trait"/><text x="145" y="178" text-anchor="end" class="net">3V3</text>
-      <text x="206" y="200" font-size="11">8 GND</text>
-      <path d="M150 196 H200" class="trait"/><text x="145" y="200" text-anchor="end" class="net">GND</text>
-      <text x="324" y="68" text-anchor="end" font-size="11">15 Q0</text>
-      <path d="M330 64 H380 M416 64 H470" class="trait"/><rect x="380" y="59" width="36" height="10" class="trait" style="fill:var(--surface)"/>
-      <text x="480" y="68" font-size="11">a</text>
-      <text x="324" y="90" text-anchor="end" font-size="11">1 Q1</text>
-      <path d="M330 86 H380 M416 86 H470" class="trait"/><rect x="380" y="81" width="36" height="10" class="trait" style="fill:var(--surface)"/>
-      <text x="480" y="90" font-size="11">b</text>
-      <text x="324" y="112" text-anchor="end" font-size="11">2 Q2</text>
-      <path d="M330 108 H380 M416 108 H470" class="trait"/><rect x="380" y="103" width="36" height="10" class="trait" style="fill:var(--surface)"/>
-      <text x="480" y="112" font-size="11">c</text>
-      <text x="324" y="134" text-anchor="end" font-size="11">3 Q3</text>
-      <path d="M330 130 H380 M416 130 H470" class="trait"/><rect x="380" y="125" width="36" height="10" class="trait" style="fill:var(--surface)"/>
-      <text x="480" y="134" font-size="11">d</text>
-      <text x="324" y="156" text-anchor="end" font-size="11">4 Q4</text>
-      <path d="M330 152 H380 M416 152 H470" class="trait"/><rect x="380" y="147" width="36" height="10" class="trait" style="fill:var(--surface)"/>
-      <text x="480" y="156" font-size="11">e</text>
-      <text x="324" y="178" text-anchor="end" font-size="11">5 Q5</text>
-      <path d="M330 174 H380 M416 174 H470" class="trait"/><rect x="380" y="169" width="36" height="10" class="trait" style="fill:var(--surface)"/>
-      <text x="480" y="178" font-size="11">f</text>
-      <text x="324" y="200" text-anchor="end" font-size="11">6 Q6</text>
-      <path d="M330 196 H380 M416 196 H470" class="trait"/><rect x="380" y="191" width="36" height="10" class="trait" style="fill:var(--surface)"/>
-      <text x="480" y="200" font-size="11">g</text>
-      <text x="324" y="222" text-anchor="end" font-size="11">9 Q7'</text>
-      <rect class="ic" x="470" y="40" width="130" height="200"/>
-      <text x="535" y="32" text-anchor="middle" font-weight="600">DS1 unités</text>
-      <text x="535" y="252" text-anchor="middle" class="net">à droite en façade</text>
-      <g stroke="var(--seg)" stroke-width="6" stroke-linecap="round" fill="none"><path d="M526 80 H564"/><path d="M570 86 V124"/><path d="M570 136 V174"/><path d="M526 180 H564"/><path d="M520 136 V174"/><path d="M520 86 V124"/><path d="M526 130 H564"/></g>
-      <text x="535" y="230" text-anchor="middle" font-size="11">K (3 et 8)</text>
-      <path d="M600 226 H630 M620 226 V240 M610 240 H630 M614 245 H626 M618 250 H622" class="trait"/>
-      <rect class="ic" x="200" y="290" width="130" height="200"/>
-      <text x="265" y="282" text-anchor="middle" font-weight="600">U4 74HC595</text>
-      <text x="265" y="502" text-anchor="middle" class="net">dizaines</text>
-      <text x="206" y="318" font-size="11">14 DS</text>
-      <text x="206" y="340" font-size="11">11 SH_CP</text>
-      <path d="M150 336 H200" class="trait"/><text x="145" y="340" text-anchor="end" class="net">GPIO6</text>
-      <text x="206" y="362" font-size="11">12 ST_CP</text>
-      <path d="M150 358 H200" class="trait"/><text x="145" y="362" text-anchor="end" class="net">GPIO3</text>
-      <text x="206" y="384" font-size="11">10 MR</text>
-      <path d="M150 380 H200" class="trait"/><text x="145" y="384" text-anchor="end" class="net">3V3</text>
-      <text x="206" y="406" font-size="11">13 OE</text>
-      <path d="M150 402 H200" class="trait"/><text x="145" y="406" text-anchor="end" class="net">GND</text>
-      <text x="206" y="428" font-size="11">16 VCC</text>
-      <path d="M150 424 H200" class="trait"/><text x="145" y="428" text-anchor="end" class="net">3V3</text>
-      <text x="206" y="450" font-size="11">8 GND</text>
-      <path d="M150 446 H200" class="trait"/><text x="145" y="450" text-anchor="end" class="net">GND</text>
-      <text x="324" y="318" text-anchor="end" font-size="11">15 Q0</text>
-      <path d="M330 314 H380 M416 314 H470" class="trait"/><rect x="380" y="309" width="36" height="10" class="trait" style="fill:var(--surface)"/>
-      <text x="480" y="318" font-size="11">a</text>
-      <text x="324" y="340" text-anchor="end" font-size="11">1 Q1</text>
-      <path d="M330 336 H380 M416 336 H470" class="trait"/><rect x="380" y="331" width="36" height="10" class="trait" style="fill:var(--surface)"/>
-      <text x="480" y="340" font-size="11">b</text>
-      <text x="324" y="362" text-anchor="end" font-size="11">2 Q2</text>
-      <path d="M330 358 H380 M416 358 H470" class="trait"/><rect x="380" y="353" width="36" height="10" class="trait" style="fill:var(--surface)"/>
-      <text x="480" y="362" font-size="11">c</text>
-      <text x="324" y="384" text-anchor="end" font-size="11">3 Q3</text>
-      <path d="M330 380 H380 M416 380 H470" class="trait"/><rect x="380" y="375" width="36" height="10" class="trait" style="fill:var(--surface)"/>
-      <text x="480" y="384" font-size="11">d</text>
-      <text x="324" y="406" text-anchor="end" font-size="11">4 Q4</text>
-      <path d="M330 402 H380 M416 402 H470" class="trait"/><rect x="380" y="397" width="36" height="10" class="trait" style="fill:var(--surface)"/>
-      <text x="480" y="406" font-size="11">e</text>
-      <text x="324" y="428" text-anchor="end" font-size="11">5 Q5</text>
-      <path d="M330 424 H380 M416 424 H470" class="trait"/><rect x="380" y="419" width="36" height="10" class="trait" style="fill:var(--surface)"/>
-      <text x="480" y="428" font-size="11">f</text>
-      <text x="324" y="450" text-anchor="end" font-size="11">6 Q6</text>
-      <path d="M330 446 H380 M416 446 H470" class="trait"/><rect x="380" y="441" width="36" height="10" class="trait" style="fill:var(--surface)"/>
-      <text x="480" y="450" font-size="11">g</text>
-      <text x="324" y="472" text-anchor="end" font-size="11">9 Q7'</text>
-      <rect class="ic" x="470" y="290" width="130" height="200"/>
-      <text x="535" y="282" text-anchor="middle" font-weight="600">DS2 dizaines</text>
-      <text x="535" y="502" text-anchor="middle" class="net">à gauche en façade</text>
-      <g stroke="var(--seg)" stroke-width="6" stroke-linecap="round" fill="none"><path d="M526 330 H564"/><path d="M570 336 V374"/><path d="M570 386 V424"/><path d="M526 430 H564"/><path d="M520 386 V424"/><path d="M520 336 V374"/><path d="M526 380 H564"/></g>
-      <text x="535" y="480" text-anchor="middle" font-size="11">K (3 et 8)</text>
-      <path d="M600 476 H630 M620 476 V490 M610 490 H630 M614 495 H626 M618 500 H622" class="trait"/>
-      <path d="M330 218 H350 V268 H170 V314 H200" class="trait" stroke="var(--wire-a)"/>
-      <text x="398" y="56" text-anchor="middle" class="net">R2 à R8</text><text x="398" y="306" text-anchor="middle" class="net">R9 à R15</text>
-      <g font-size="12">
-        <text x="660" y="70" font-weight="600">À retenir</text>
-        <text x="660" y="94">R2 à R15 : 220 Ω</text>
-        <text x="660" y="116">C2, C3 : 100 nF entre VCC et GND,</text>
-        <text x="660" y="132">au plus près de chaque 74HC595</text>
-        <text x="660" y="156">Chiffres à cathode commune,</text>
-        <text x="660" y="172">0,56 pouce (5161AS ou équivalent)</text>
-        <text x="660" y="196">Q7 (broche 7) : non relié</text>
-        <text x="660" y="212">Point DP de l'afficheur : non relié</text>
-        <text x="660" y="236">Anode commune : relier les</text>
-        <text x="660" y="252">communs à 3V3 et mettre</text>
-        <text x="660" y="268">ANODE_COMMUNE = true dans le code</text>
-      </g>
-    </svg>
-  </div>
-  <p class="note">Prenez deux chiffres séparés (afficheurs 1 chiffre, 10 broches) placés côte à côte. Les afficheurs « 2 chiffres » courants à 10 broches (5621AS par exemple) partagent les segments entre les deux chiffres et demandent un balayage : ils ne marchent pas avec ce câblage. Avec 220 Ω, chaque segment prend environ 6 mA, soit au plus 42 mA par 74HC595 (limite 70 mA) et environ 85 mA pour « 88 ». Pour économiser les piles, passez à 470 Ω : l'affichage reste lisible en intérieur.</p>
   <p class="note">La WS2812B est alimentée en 5 V mais pilotée en 3,3 V. Grâce à la diode D2, le rail 5V est en réalité vers 4,7 V, ce qui aide la LED à bien lire le 3,3 V. Si une LED clignote au hasard ou reste blanche, ajoutez une diode 1N4148 en série sur son <code>VDD</code> (anode côté 5V) : elle passe vers 4 V et lit sans problème le 3,3 V.</p>
   <div class="tw"><table>
     <thead><tr><th>Repère</th><th>Composant</th><th>Quantité</th></tr></thead>
@@ -574,9 +457,7 @@ svg .dot { fill: var(--fg); }
       <tr><td>U1 tally</td><td>ESP32-C3 Super Mini</td><td>8</td></tr>
       <tr><td>LED1</td><td>WS2812B (LED seule sur petit circuit, ou anneau)</td><td>8</td></tr>
       <tr><td>R1, C1 tally</td><td>330 Ω, condensateur 100 µF 10 V</td><td>8 de chaque</td></tr>
-      <tr><td>U3, U4 tally</td><td>74HC595 en boîtier DIP-16 (avec supports)</td><td>16</td></tr>
-      <tr><td>DS1, DS2 tally</td><td>Afficheur 7 segments 1 chiffre 0,56 pouce, cathode commune (5161AS)</td><td>16</td></tr>
-      <tr><td>R2 à R15, C2, C3 tally</td><td>Résistances 220 Ω, condensateurs 100 nF</td><td>112 résistances, 16 condensateurs</td></tr>
+      <tr><td>U3 tally</td><td>Module afficheur TM1637 4 chiffres 0,36 pouce (seuls les 2 de droite servent)</td><td>8</td></tr>
       <tr><td>SW2, SW3 tally</td><td>Boutons poussoirs 6 × 6 mm ou à visser en façade</td><td>16</td></tr>
       <tr><td>U2 tally</td><td>Module TPS63020 abaisseur-élévateur, sortie 5 V (ou réglable, mis sur 5 V)</td><td>8</td></tr>
       <tr><td>D2 tally</td><td>Diode Schottky 1N5817</td><td>8</td></tr>
