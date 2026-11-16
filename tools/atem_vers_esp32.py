@@ -8,11 +8,11 @@ Le Mac calcule lui-même ce qui est à l'antenne, sur toutes les M/E :
   - multiview envoyé comme source : toutes les sources de ses fenêtres ;
   - sortie d'une M/E utilisée comme source dans une autre (M/E 2 dans M/E 1…) ;
   - incrustateurs aval (DSK) sur la M/E 1, et les transitions en cours.
-Une caméra est au PROGRAMME (rouge) si elle est visible sur le programme de l'une
-des M/E suivies, sinon en PREVIEW (vert) si elle est visible sur l'un des previews.
+Le script envoie à l'ESP32 le tally de CHAQUE M/E séparément (programme / preview
+de chaque entrée). C'est l'émetteur qui combine les M/E choisies avec ses
+interrupteurs : une entrée est rouge si elle est au programme de l'une d'elles.
 
-Usage :  python3 atem_vers_esp32.py 192.168.2.20                (toutes les M/E)
-         python3 atem_vers_esp32.py 192.168.2.20 --me 1,2       (seulement ces M/E)
+Usage :  python3 atem_vers_esp32.py 192.168.2.20
          python3 atem_vers_esp32.py 192.168.2.20 /dev/cu.usbserial-0001
 Sans port indiqué, le script prend le premier /dev/cu.usbserial*, cu.SLAB* ou cu.wchusbserial*.
 Le Moniteur série d'Arduino IDE doit être fermé. Aucune installation. Ctrl+C pour arrêter.
@@ -20,14 +20,10 @@ Le Moniteur série d'Arduino IDE doit être fermé. Aucune installation. Ctrl+C 
 import glob, os, random, socket, sys, termios, time
 
 ARGS = [a for a in sys.argv[1:]]
-MES_SUIVIES = None             # None : toutes les M/E de l'ATEM ; sinon ex. {0, 1}
-if "--me" in ARGS:
-    i = ARGS.index("--me")
-    MES_SUIVIES = {int(x) - 1 for x in ARGS[i + 1].split(",") if x.strip()}
-    del ARGS[i:i + 2]
 IP_ATEM = ARGS[0] if ARGS else "192.168.2.20"
 PORT_ATEM = 9910
-NB_CAMS = 8                    # caméra n = entrée n de l'ATEM
+NB_ENTREES = 20                # entrées SDI 1 à 20 (2 M/E Constellation HD) ; 40 au plus
+MAX_ME = 8
 PERIODE_ENVOI = 0.1
 F_ACK_DEMANDE, F_HELLO, F_ACK = 0x08, 0x10, 0x80
 VERSION_8 = (2, 28)            # protocole des firmwares ATEM 8.0 et plus
@@ -154,15 +150,15 @@ class EtatAtem:
         return s
 
     def mes(self):
-        toutes = range(max(self.nb_me, max(self.prg, default=-1) + 1))
-        return [m for m in toutes if MES_SUIVIES is None or m in MES_SUIVIES]
+        return list(range(min(MAX_ME, max(self.nb_me, max(self.prg, default=-1) + 1))))
 
     def tally(self):
-        pgm, pvw = set(), set()
+        """Pour chaque M/E : liste des entrées 1..NB_ENTREES (bit 0 programme, bit 1 preview)."""
+        par_me = []
         for m in self.mes():
-            pgm |= self.programme(m)
-            pvw |= self.preview(m)
-        return [1 if k + 1 in pgm else 2 if k + 1 in pvw else 0 for k in range(NB_CAMS)]
+            pgm, pvw = self.programme(m), self.preview(m)
+            par_me.append([(1 if k + 1 in pgm else 0) | (2 if k + 1 in pvw else 0) for k in range(NB_ENTREES)])
+        return par_me
 
     def detail(self):
         morceaux = []
@@ -220,14 +216,27 @@ def hello(session):
     return bytes(p)
 
 
-def trame_esp32(connecte, tally):
-    m = bytearray([0xA5, 0x5A, 1 if connecte else 0])
-    m += bytes((tally[k] & 0x03) if connecte and k < len(tally) else 0 for k in range(NB_CAMS))
+def trame_esp32(connecte, par_me):
+    """A5 5A | ATEM ok | nb M/E | nb entrées | état [M/E][entrée] | XOR des octets 2 à la fin."""
+    if not connecte:
+        par_me = []
+    m = bytearray([0xA5, 0x5A, 1 if connecte else 0, len(par_me), NB_ENTREES])
+    for ligne in par_me:
+        m += bytes(v & 0x03 for v in ligne)
     x = 0
-    for b in m[2:11]:
+    for b in m[2:]:
         x ^= b
     m.append(x)
     return bytes(m)
+
+
+def resume(par_me):
+    morceaux = []
+    for m, ligne in enumerate(par_me):
+        pg = ",".join(str(k + 1) for k, v in enumerate(ligne) if v & 1) or "-"
+        pv = ",".join(str(k + 1) for k, v in enumerate(ligne) if v & 2) or "-"
+        morceaux.append(f"M/E {m + 1} PGM {pg} PVW {pv}")
+    return " | ".join(morceaux)
 
 
 def commandes(data):
@@ -243,12 +252,11 @@ def commandes(data):
 def main():
     port = trouver_port()
     fd = ouvrir_serie(port)
-    quoi = "toutes les M/E" if MES_SUIVIES is None else "M/E " + ", ".join(str(m + 1) for m in sorted(MES_SUIVIES))
-    print(f"ESP32 sur {port}, ATEM {IP_ATEM}, {quoi}", flush=True)
+    print(f"ESP32 sur {port}, ATEM {IP_ATEM}, entrées 1 à {NB_ENTREES}", flush=True)
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.bind(("", 0))
     sock.settimeout(0.05)
-    tally = [0] * NB_CAMS
+    tally = []
     connecte = False
     atem = EtatAtem()
     dernier_recu = dernier_hello = dernier_envoi = 0.0
@@ -300,14 +308,13 @@ def main():
                 nouveau = atem.tally()
                 if nouveau != tally:
                     tally = nouveau
-                    etats = "  ".join(f"{k + 1}:{'PGM' if f & 1 else 'PVW' if f & 2 else '-'}" for k, f in enumerate(tally))
-                    print(time.strftime("%H:%M:%S"), "Tally :", etats, flush=True)
+                    print(time.strftime("%H:%M:%S"), resume(tally), flush=True)
                     print("         ", atem.detail(), flush=True)
                     envoyer_esp()
 
         if connecte and time.time() - dernier_recu > 2.5:
             connecte = False
-            tally = [0] * NB_CAMS
+            tally = []
             print("ATEM perdu, reconnexion…", flush=True)
 
         if time.time() - dernier_envoi >= PERIODE_ENVOI:

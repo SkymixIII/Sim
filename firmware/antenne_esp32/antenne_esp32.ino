@@ -29,7 +29,8 @@ static const uint8_t  LED_ORANGE = 18;
 static const uint8_t  LED_BLEUE = 19;
 static const int8_t   PUISSANCE_TX = 78;    // en quarts de dBm : 78 = 19,5 dBm, le maximum
 
-static const uint8_t  TRAME_LEN = 16;
+static const uint8_t  TRAME_LEN = 16;         // longueur minimale (8 caméras)
+static const uint8_t  TRAME_MAX = 8 + 40;     // jusqu'à 40 entrées SDI
 static const uint8_t  BROADCAST[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
 // Écrits dans le callback ESP-NOW (tâche Wi-Fi), lus dans loop().
@@ -39,7 +40,8 @@ volatile bool dejaRecu = false;
 volatile uint8_t dernierSeq = 0;
 volatile uint8_t atemOk = 0;
 volatile uint8_t sauts = 0;
-uint8_t relais[TRAME_LEN];
+uint8_t relais[TRAME_MAX];
+volatile uint8_t relaisLen = TRAME_LEN;
 volatile bool relaisEnAttente = false;
 volatile uint32_t relaisA = 0;
 
@@ -66,7 +68,8 @@ static void traiterTrame(const uint8_t *data, int len) {
   atemOk = data[4];
   sauts = data[7] + 1;
   if (data[6] > 1) {
-    memcpy(relais, data, TRAME_LEN);
+    relaisLen = len < TRAME_MAX ? len : TRAME_MAX;
+    memcpy(relais, data, relaisLen);
     relais[6] = data[6] - 1;
     relais[7] = data[7] + 1;
     relaisA = maintenant + 2 + (esp_random() % 13);
@@ -113,11 +116,13 @@ void setup() {
 }
 
 void loop() {
-  uint8_t aEnvoyer[TRAME_LEN];
+  uint8_t aEnvoyer[TRAME_MAX];
+  uint8_t nEnvoi = 0;
   bool envoyer = false;
   portENTER_CRITICAL(&verrou);
   if (relaisEnAttente && (int32_t)(millis() - relaisA) >= 0) {
-    memcpy(aEnvoyer, relais, TRAME_LEN);
+    nEnvoi = relaisLen;
+    memcpy(aEnvoyer, relais, nEnvoi);
     relaisEnAttente = false;
     envoyer = true;
   }
@@ -127,7 +132,7 @@ void loop() {
   portEXIT_CRITICAL(&verrou);
 
   uint32_t maintenant = millis();
-  if (envoyer && esp_now_send(BROADCAST, aEnvoyer, TRAME_LEN) == ESP_OK) {
+  if (envoyer && esp_now_send(BROADCAST, aEnvoyer, nEnvoi) == ESP_OK) {
     flashJusqua = maintenant + FLASH_MS;   // la LED orange signale l'émission
     relayees++;
   }

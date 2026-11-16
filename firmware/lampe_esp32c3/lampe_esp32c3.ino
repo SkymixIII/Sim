@@ -35,7 +35,8 @@ static const uint8_t  PIN_WS2812 = 4;
 static const uint16_t NB_LEDS = 1;          // mettre le nombre de LED si c'est un anneau ou un ruban
 static const uint8_t  LUMINOSITE = 160;     // 0 à 255 : une WS2812B à fond tire ~60 mA par LED
 
-static const uint8_t  TRAME_LEN = 16;
+static const uint8_t  TRAME_LEN = 16;         // longueur minimale (8 caméras)
+static const uint8_t  TRAME_MAX = 8 + 40;     // jusqu'à 40 entrées SDI
 static const uint8_t  BROADCAST[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
 Adafruit_NeoPixel leds(NB_LEDS, PIN_WS2812, NEO_GRB + NEO_KHZ800);
@@ -49,7 +50,8 @@ volatile uint8_t dernierSeq = 0;
 volatile uint8_t atemOk = 0;
 volatile uint8_t etatCam = 0;
 volatile uint8_t sauts = 0;
-uint8_t relais[TRAME_LEN];
+uint8_t relais[TRAME_MAX];
+volatile uint8_t relaisLen = TRAME_LEN;
 volatile bool relaisEnAttente = false;
 volatile uint32_t relaisA = 0;
 
@@ -73,10 +75,11 @@ static void traiterTrame(const uint8_t *data, int len) {
   dernierMessage = maintenant;
   dejaRecu = true;
   atemOk = data[4];
-  etatCam = (CAM <= data[5]) ? data[7 + CAM] : 0;
+  etatCam = (CAM <= data[5] && 7 + CAM < len) ? data[7 + CAM] : 0;
   sauts = data[7] + 1;
   if (RELAIS && data[6] > 1) {
-    memcpy(relais, data, TRAME_LEN);
+    relaisLen = len < TRAME_MAX ? len : TRAME_MAX;
+    memcpy(relais, data, relaisLen);
     relais[6] = data[6] - 1;                          // TTL
     relais[7] = data[7] + 1;                          // sauts
     relaisA = maintenant + 2 + (esp_random() % 13);   // 2 à 14 ms : les voisines n'émettent pas ensemble
@@ -127,11 +130,13 @@ void setup() {
 
 void loop() {
   // Relais en attente
-  uint8_t aEnvoyer[TRAME_LEN];
+  uint8_t aEnvoyer[TRAME_MAX];
+  uint8_t nEnvoi = 0;
   bool envoyer = false;
   portENTER_CRITICAL(&verrou);
   if (relaisEnAttente && (int32_t)(millis() - relaisA) >= 0) {
-    memcpy(aEnvoyer, relais, TRAME_LEN);
+    nEnvoi = relaisLen;
+    memcpy(aEnvoyer, relais, nEnvoi);
     relaisEnAttente = false;
     envoyer = true;
   }
@@ -139,7 +144,7 @@ void loop() {
   bool recu = dejaRecu;
   uint8_t ok = atemOk, e = etatCam, s = sauts;
   portEXIT_CRITICAL(&verrou);
-  if (envoyer) esp_now_send(BROADCAST, aEnvoyer, TRAME_LEN);
+  if (envoyer) esp_now_send(BROADCAST, aEnvoyer, nEnvoi);
 
   uint32_t maintenant = millis();
   // 0 : plus de trame, 1 : ATEM perdu, 2 : programme, 3 : preview, 4 : rien
