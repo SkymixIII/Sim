@@ -108,7 +108,10 @@ void envoyerUdp(const uint8_t *buf, uint16_t len) {
 }
 
 void lireUsb() {
-  while (Serial.available()) {
+  // Au plus 2 Ko par tour de loop() : la radio et les délais continuent de tourner
+  // même quand l'USB est saturé.
+  int budget = 2048;
+  while (budget-- > 0 && Serial.available()) {
     uint8_t c = Serial.read();
     if (usbPos == 0) { if (c == 0xA5) usbBuf[usbPos++] = c; continue; }
     if (usbPos == 1) { if (c == 0x5A) usbBuf[usbPos++] = c; else usbPos = (c == 0xA5) ? 1 : 0; continue; }
